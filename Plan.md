@@ -275,7 +275,7 @@ struct SocialContext: Codable {
 - [x] 12. Implement prompt for vinyl record text extraction
 - [x] 13. Parse structured JSON response into ExtractedData
 - [x] 14. Connect API key from KeychainService
-- [ ] 15. Display extracted text in UI
+- [x] 15. Display extracted text in UI
 
 ### Milestone 3: Discogs Matching (Week 2)
 
