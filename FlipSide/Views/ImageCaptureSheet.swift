@@ -24,7 +24,6 @@ struct ImageCaptureSheet: View {
     enum CaptureMode {
         case selection
         case camera
-        case photoLibrary
     }
     
     var body: some View {
@@ -35,8 +34,6 @@ struct ImageCaptureSheet: View {
                     selectionView
                 case .camera:
                     cameraView
-                case .photoLibrary:
-                    photoLibraryView
                 }
             }
             .navigationTitle(navigationTitle)
@@ -86,9 +83,8 @@ struct ImageCaptureSheet: View {
                     .cornerRadius(12)
                 }
                 
-                Button {
-                    captureMode = .photoLibrary
-                } label: {
+                // Directly embed PhotoLibraryPicker with custom label - it will open the picker immediately when tapped
+                PhotoLibraryPicker(selectedImage: $capturedImage) {
                     HStack {
                         Image(systemName: "photo.on.rectangle")
                             .font(.title2)
@@ -100,6 +96,8 @@ struct ImageCaptureSheet: View {
                     .background(Color.secondary.opacity(0.2))
                     .foregroundStyle(.primary)
                     .cornerRadius(12)
+                } onImageSelected: { image in
+                    handleImageSelected(image)
                 }
             }
             .padding(.horizontal, 32)
@@ -145,31 +143,6 @@ struct ImageCaptureSheet: View {
         }
     }
     
-    // MARK: - Photo Library View
-    
-    private var photoLibraryView: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            Image(systemName: "photo.on.rectangle")
-                .font(.system(size: 80))
-                .foregroundStyle(.secondary)
-            
-            Text("Select a photo from your library")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            
-            PhotoLibraryPicker(selectedImage: $capturedImage) { image in
-                handleImageSelected(image)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            
-            Spacer()
-        }
-        .padding()
-    }
-    
     // MARK: - Computed Properties
     
     private var navigationTitle: String {
@@ -178,8 +151,6 @@ struct ImageCaptureSheet: View {
             return "Add Image"
         case .camera:
             return "Take Photo"
-        case .photoLibrary:
-            return "Choose Photo"
         }
     }
     
@@ -195,7 +166,7 @@ struct ImageCaptureSheet: View {
                 }
             } catch let error as ImageCaptureService.ImageCaptureError {
                 await MainActor.run {
-                    errorMessage = error.localizedDescription ?? "Failed to start camera"
+                    errorMessage = error.localizedDescription
                     showError = true
                 }
             } catch {
@@ -213,7 +184,7 @@ struct ImageCaptureSheet: View {
             case .success(let image):
                 handleImageSelected(image)
             case .failure(let error):
-                errorMessage = error.localizedDescription ?? "Failed to capture photo"
+                errorMessage = error.localizedDescription
                 showError = true
             }
         }

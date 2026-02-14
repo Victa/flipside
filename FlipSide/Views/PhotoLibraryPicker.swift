@@ -9,11 +9,22 @@ import SwiftUI
 import PhotosUI
 
 /// Helper view for photo library selection using PhotosPicker
-struct PhotoLibraryPicker: View {
+struct PhotoLibraryPicker<Label: View>: View {
     @Binding var selectedImage: UIImage?
     @State private var selectedItem: PhotosPickerItem?
     
     let onImageSelected: (UIImage) -> Void
+    let label: () -> Label
+    
+    init(
+        selectedImage: Binding<UIImage?>,
+        @ViewBuilder label: @escaping () -> Label,
+        onImageSelected: @escaping (UIImage) -> Void
+    ) {
+        self._selectedImage = selectedImage
+        self.label = label
+        self.onImageSelected = onImageSelected
+    }
     
     var body: some View {
         PhotosPicker(
@@ -21,7 +32,7 @@ struct PhotoLibraryPicker: View {
             matching: .images,
             photoLibrary: .shared()
         ) {
-            Label("Choose from Library", systemImage: "photo.on.rectangle")
+            label()
         }
         .onChange(of: selectedItem) { oldValue, newValue in
             Task {
@@ -33,6 +44,20 @@ struct PhotoLibraryPicker: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// Convenience initializer for default label
+extension PhotoLibraryPicker where Label == SwiftUI.Label<Text, Image> {
+    init(
+        selectedImage: Binding<UIImage?>,
+        onImageSelected: @escaping (UIImage) -> Void
+    ) {
+        self._selectedImage = selectedImage
+        self.onImageSelected = onImageSelected
+        self.label = {
+            Label("Choose from Library", systemImage: "photo.on.rectangle")
         }
     }
 }
