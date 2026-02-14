@@ -13,9 +13,16 @@ struct ResultView: View {
     let discogsMatches: [DiscogsMatch]
     let discogsError: String?
     
+    @StateObject private var networkMonitor = NetworkMonitor.shared
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Offline indicator banner
+                if !networkMonitor.isConnected {
+                    offlineIndicatorBanner
+                }
+                
                 // Captured image
                 Image(uiImage: image)
                     .resizable()
@@ -41,6 +48,23 @@ struct ResultView: View {
         }
         .navigationTitle("Results")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // MARK: - Offline Indicator
+    
+    private var offlineIndicatorBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+                .font(.subheadline)
+            Text("Offline - Album artwork unavailable")
+                .font(.subheadline)
+        }
+        .foregroundStyle(.white)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(Color.orange)
+        .padding(.horizontal)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
     // MARK: - Discogs Matches Section
@@ -323,15 +347,31 @@ struct DiscogsMatchCard: View {
                             .frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     case .failure:
-                        Image(systemName: "photo")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 150)
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text("Artwork unavailable")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 150)
                     @unknown default:
                         EmptyView()
                     }
                 }
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("No artwork available")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 150)
             }
             
             // Release details
