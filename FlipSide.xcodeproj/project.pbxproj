@@ -7,27 +7,29 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0063BD5382F3078CFBF4B7A7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 369F06060C9C3910E329F9D6 /* SettingsView.swift */; };
+		1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */; };
 		30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA9D7A0E93BBB08AADC9FEA /* ContentView.swift */; };
+		34BD86082ABF7992AEB7DE2C /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BDF0856DA2E3DFDB893F653 /* VisionService.swift */; };
 		81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C713B19E709576052C4C831F /* FlipSideApp.swift */; };
+		84FA0A8493641F8EB680A2CE /* PhotoLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */; };
 		86AC39FAD1914573A51A2F78 /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35862C30A935DEC9412C2DF2 /* Scan.swift */; };
-		A1A1A1A1A1A1A1A1A1A1A1A1 /* ImageCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B1B1B1B1B1B1B1B1B1B1B1 /* ImageCaptureService.swift */; };
-		A2A2A2A2A2A2A2A2A2A2A2A2 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2B2B2B2B2B2B2B2B2B2B2B2 /* CameraPreviewView.swift */; };
-		A3A3A3A3A3A3A3A3A3A3A3A3 /* PhotoLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */; };
-		A4A4A4A4A4A4A4A4A4A4A4A4 /* ImageCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */; };
-		A5A5A5A5A5A5A5A5A5A5A5A5 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B5B5B5B5B5B5B5B5B5B5B5 /* KeychainService.swift */; };
-		A6A6A6A6A6A6A6A6A6A6A6A6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */; };
+		A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */; };
+		AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */; };
+		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 		35862C30A935DEC9412C2DF2 /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
+		369F06060C9C3910E329F9D6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		381C45531F49D9710B80692F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
+		77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryPicker.swift; sourceTree = "<group>"; };
 		8FA9D7A0E93BBB08AADC9FEA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B1B1B1B1B1B1B1B1B1B1B1B1 /* ImageCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureService.swift; sourceTree = "<group>"; };
-		B2B2B2B2B2B2B2B2B2B2B2B2 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
-		B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryPicker.swift; sourceTree = "<group>"; };
-		B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
-		B5B5B5B5B5B5B5B5B5B5B5B5 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureService.swift; sourceTree = "<group>"; };
+		9BDF0856DA2E3DFDB893F653 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
 		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -48,30 +50,31 @@
 				C713B19E709576052C4C831F /* FlipSideApp.swift */,
 				381C45531F49D9710B80692F /* Info.plist */,
 				0945C28685A37273586B835C /* Models */,
-				D1D1D1D1D1D1D1D1D1D1D1D1 /* Services */,
-				D2D2D2D2D2D2D2D2D2D2D2D2 /* Views */,
+				C1767B24B5559214C69C9EF3 /* Services */,
+				68D6B60D9BCBDCFEAA631008 /* Views */,
 			);
 			path = FlipSide;
 			sourceTree = "<group>";
 		};
-		D1D1D1D1D1D1D1D1D1D1D1D1 /* Services */ = {
+		68D6B60D9BCBDCFEAA631008 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B1B1B1B1B1B1B1B1B1B1B1B1 /* ImageCaptureService.swift */,
-				B5B5B5B5B5B5B5B5B5B5B5B5 /* KeychainService.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		D2D2D2D2D2D2D2D2D2D2D2D2 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				B2B2B2B2B2B2B2B2B2B2B2B2 /* CameraPreviewView.swift */,
-				B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */,
-				B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */,
-				B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */,
+				3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */,
+				5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */,
+				77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */,
+				369F06060C9C3910E329F9D6 /* SettingsView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		C1767B24B5559214C69C9EF3 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */,
+				908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */,
+				9BDF0856DA2E3DFDB893F653 /* VisionService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		F3082CA6946E4CE2ACBEB8A4 = {
@@ -143,15 +146,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
 				81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */,
+				1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */,
+				A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */,
+				AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */,
+				84FA0A8493641F8EB680A2CE /* PhotoLibraryPicker.swift in Sources */,
 				86AC39FAD1914573A51A2F78 /* Scan.swift in Sources */,
-				A1A1A1A1A1A1A1A1A1A1A1A1 /* ImageCaptureService.swift in Sources */,
-				A2A2A2A2A2A2A2A2A2A2A2A2 /* CameraPreviewView.swift in Sources */,
-				A3A3A3A3A3A3A3A3A3A3A3A3 /* PhotoLibraryPicker.swift in Sources */,
-				A4A4A4A4A4A4A4A4A4A4A4A4 /* ImageCaptureSheet.swift in Sources */,
-				A5A5A5A5A5A5A5A5A5A5A5A5 /* KeychainService.swift in Sources */,
-				A6A6A6A6A6A6A6A6A6A6A6A6 /* SettingsView.swift in Sources */,
+				0063BD5382F3078CFBF4B7A7 /* SettingsView.swift in Sources */,
+				34BD86082ABF7992AEB7DE2C /* VisionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
