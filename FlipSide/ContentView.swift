@@ -76,7 +76,12 @@ struct HistoryView: View {
                     }
             }
             .navigationDestination(for: ResultDestination.self) { destination in
-                ResultView(image: destination.image, extractedData: destination.extractedData)
+                ResultView(
+                    image: destination.image,
+                    extractedData: destination.extractedData,
+                    discogsMatches: destination.discogsMatches,
+                    discogsError: destination.discogsError
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -200,7 +205,34 @@ struct HistoryView: View {
         
         do {
             // Call VisionService to extract vinyl info
-            let extractedData = try await VisionService.shared.extractVinylInfo(from: image)
+            var extractedData = try await VisionService.shared.extractVinylInfo(from: image)
+            
+            // Sanitize extracted data: convert string "null" to actual nil
+            extractedData = ExtractedData(
+                artist: extractedData.artist?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.artist?.lowercased() == "null" ? nil : extractedData.artist,
+                album: extractedData.album?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.album?.lowercased() == "null" ? nil : extractedData.album,
+                label: extractedData.label?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.label?.lowercased() == "null" ? nil : extractedData.label,
+                catalogNumber: extractedData.catalogNumber?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.catalogNumber?.lowercased() == "null" ? nil : extractedData.catalogNumber,
+                year: extractedData.year,
+                tracks: extractedData.tracks,
+                rawText: extractedData.rawText,
+                confidence: extractedData.confidence
+            )
+            
+            // Search Discogs for matches (if token is available)
+            var discogsMatches: [DiscogsMatch] = []
+            var discogsError: String? = nil
+            if KeychainService.shared.discogsPersonalToken != nil {
+                do {
+                    discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
+                } catch {
+                    // Capture error message to display in UI
+                    discogsError = error.localizedDescription
+                    print("Discogs search failed: \(error.localizedDescription)")
+                }
+            } else {
+                discogsError = "Discogs personal access token not configured. Add it in Settings to search for matches."
+            }
             
             // Save image to documents
             let captureService = ImageCaptureService()
@@ -217,7 +249,12 @@ struct HistoryView: View {
                 
                 // Navigate to result view
                 navigationPath.removeLast() // Remove processing view
-                navigationPath.append(ResultDestination(image: image, extractedData: extractedData))
+                navigationPath.append(ResultDestination(
+                    image: image,
+                    extractedData: extractedData,
+                    discogsMatches: discogsMatches,
+                    discogsError: discogsError
+                ))
                 isProcessing = false
             }
         } catch {
@@ -270,6 +307,8 @@ struct ResultDestination: Hashable {
     let id = UUID()
     let image: UIImage
     let extractedData: ExtractedData
+    let discogsMatches: [DiscogsMatch]
+    let discogsError: String?
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

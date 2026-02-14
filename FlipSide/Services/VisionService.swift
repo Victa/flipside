@@ -76,8 +76,15 @@ final class VisionService {
         let label: String?
         let catalogNumber: String?
         let year: Int?
+        let tracks: [TrackJSON]?
         let rawText: String
         let confidence: Double
+        
+        struct TrackJSON: Codable {
+            let position: String
+            let title: String
+            let artist: String?
+        }
     }
     
     // MARK: - Singleton
@@ -213,25 +220,40 @@ final class VisionService {
         You are an expert at reading vinyl record labels and album covers. Analyze this image and extract the following information:
         
         - Artist name
-        - Album title
+        - Album title (or single title if this is a single, NOT individual track names)
         - Record label name
         - Catalog number (usually a combination of letters and numbers like "ABC-12345")
         - Release year
+        - TRACK LISTING (VERY IMPORTANT for singles and EPs!)
+        
+        IMPORTANT: Many vinyl records are singles or EPs with only 1-3 tracks per side, not full albums. 
+        Look for numbered track listings like:
+        - "1. Track Name"
+        - "A1. Track Name" or "B1. Track Name"
+        - "SIDE A: Track Name"
         
         Look carefully at all text visible in the image, including:
         - Album cover titles and credits
         - Record label text (usually in the center)
+        - Track listings (often numbered 1, 2, 3 or A1, A2, B1, B2)
         - Small print around the edges of labels
         - Spine text if visible
         - Back cover information
         
         Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
         {
-            "artist": "artist name or null if not found",
-            "album": "album title or null if not found",
+            "artist": "main artist name or null if not found",
+            "album": "album or single title (NOT track names) or null if not found",
             "label": "label name or null if not found",
             "catalogNumber": "catalog number or null if not found",
             "year": year as integer or null if not found,
+            "tracks": [
+                {
+                    "position": "track number/position (e.g., '1', 'A1', 'B2')",
+                    "title": "track title",
+                    "artist": "artist credit if different from main artist, otherwise null"
+                }
+            ] or null if no track listing visible,
             "rawText": "all text you can see in the image",
             "confidence": confidence score between 0.0 and 1.0
         }
@@ -244,6 +266,7 @@ final class VisionService {
         - 0.0-0.3 = Very little readable text
         
         Be precise and only extract information you can actually see. Use null for missing fields.
+        CRITICAL: If you see numbered tracks, you MUST extract them into the tracks array!
         """
     }
     
@@ -322,6 +345,13 @@ final class VisionService {
             label: extractedJSON.label,
             catalogNumber: extractedJSON.catalogNumber,
             year: extractedJSON.year,
+            tracks: extractedJSON.tracks?.map { trackJSON in
+                ExtractedData.Track(
+                    position: trackJSON.position,
+                    title: trackJSON.title,
+                    artist: trackJSON.artist
+                )
+            },
             rawText: extractedJSON.rawText,
             confidence: extractedJSON.confidence
         )

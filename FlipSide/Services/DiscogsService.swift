@@ -152,10 +152,18 @@ final class DiscogsService {
         }
         
         // Perform search with rate limiting
-        let searchResults = try await performSearchWithRetry(
+        var searchResults = try await performSearchWithRetry(
             query: searchQuery,
             personalToken: personalToken
         )
+        
+        // If no results, try fallback searches with simpler queries
+        if searchResults.isEmpty {
+            searchResults = try await performFallbackSearches(
+                extractedData: extractedData,
+                personalToken: personalToken
+            )
+        }
         
         guard !searchResults.isEmpty else {
             throw DiscogsError.noMatches
@@ -241,6 +249,38 @@ final class DiscogsService {
     
     // MARK: - Private Methods
     
+    /// Perform fallback searches with simpler queries when primary search fails
+    private func performFallbackSearches(
+        extractedData: ExtractedData,
+        personalToken: String
+    ) async throws -> [SearchResponse.SearchResult] {
+        // Fallback 1: Artist + First track title (good for singles/EPs)
+        if let artist = extractedData.artist, !artist.isEmpty,
+           let tracks = extractedData.tracks, !tracks.isEmpty {
+            let firstTrack = tracks[0].title
+            if !firstTrack.isEmpty {
+                let query1 = "\(artist) \(firstTrack)"
+                if let results = try? await performSearchWithRetry(query: query1, personalToken: personalToken),
+                   !results.isEmpty {
+                    return results
+                }
+            }
+        }
+        
+        // Fallback 2: Artist + Album only
+        if let artist = extractedData.artist, !artist.isEmpty,
+           let album = extractedData.album, !album.isEmpty {
+            let query2 = "\(artist) \(album)"
+            if let results = try? await performSearchWithRetry(query: query2, personalToken: personalToken),
+               !results.isEmpty {
+                return results
+            }
+        }
+        
+        // No fallback strategies worked
+        return []
+    }
+    
     /// Perform search with retry logic for rate limiting
     private func performSearchWithRetry(
         query: String,
@@ -281,7 +321,7 @@ final class DiscogsService {
         components?.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "type", value: "release"),
-            URLQueryItem(name: "format", value: "vinyl"),
+            // Note: Not filtering by format=vinyl to include lathe cuts and other formats
             URLQueryItem(name: "per_page", value: "\(maxResultsPerSearch)")
         ]
         
@@ -325,30 +365,28 @@ final class DiscogsService {
         }
     }
     
-    /// Build search query string from extracted data
+    /// Build primary search query (catalog number only - most specific)
     private func buildSearchQuery(from extractedData: ExtractedData) -> String {
-        var queryParts: [String] = []
-        
-        // Prioritize artist and album as they're most important
-        if let artist = extractedData.artist, !artist.isEmpty {
-            queryParts.append(artist)
-        }
-        
-        if let album = extractedData.album, !album.isEmpty {
-            queryParts.append(album)
-        }
-        
-        // Add catalog number if available (very specific identifier)
+        // Primary strategy: Catalog number only (most specific identifier)
         if let catno = extractedData.catalogNumber, !catno.isEmpty {
-            queryParts.append(catno)
+            return catno
         }
         
-        // Add label if no artist/album found
-        if queryParts.isEmpty, let label = extractedData.label, !label.isEmpty {
-            queryParts.append(label)
+        // Fallback to artist if no catalog number
+        if let artist = extractedData.artist, !artist.isEmpty {
+            return artist
         }
         
-        return queryParts.joined(separator: " ")
+        // Last resort: any available field
+        if let album = extractedData.album, !album.isEmpty {
+            return album
+        }
+        
+        if let label = extractedData.label, !label.isEmpty {
+            return label
+        }
+        
+        return ""
     }
     
     /// Calculate match score between search result and extracted data
@@ -358,6 +396,16 @@ final class DiscogsService {
     ) -> Double {
         var score: Double = 0.0
         let totalWeight: Double = 1.0 // Sum of all weights (0.30 + 0.30 + 0.25 + 0.10 + 0.05)
+        
+        // Check for exact catalog number match first - this is a unique identifier
+        var hasCatalogExactMatch = false
+        if let extractedCatno = extractedData.catalogNumber,
+           let resultCatno = result.catno {
+            let catnoSimilarity = stringSimilarity(extractedCatno, resultCatno)
+            if catnoSimilarity == 1.0 {
+                hasCatalogExactMatch = true
+            }
+        }
         
         // Artist matching (weight: 30%)
         let artistWeight = 0.30
@@ -406,7 +454,16 @@ final class DiscogsService {
         }
         
         // Normalize score
-        return score / totalWeight
+        var normalizedScore = score / totalWeight
+        
+        // CATALOG NUMBER EXACT MATCH BONUS
+        // If catalog number matches exactly, set a high minimum confidence
+        // because catalog numbers are unique identifiers
+        if hasCatalogExactMatch {
+            normalizedScore = max(normalizedScore, 0.92) // Ensure at least 92% confidence
+        }
+        
+        return normalizedScore
     }
     
     /// Calculate string similarity using Levenshtein distance (normalized)
