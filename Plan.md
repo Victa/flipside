@@ -271,7 +271,7 @@ struct SocialContext: Codable {
 
 ### Milestone 2: Vision Integration (Week 1-2)
 
-- [ ] 11. Create VisionService with OpenAI GPT-4o-mini API client
+- [x] 11. Create VisionService with OpenAI GPT-4o-mini API client
 - [ ] 12. Implement prompt for vinyl record text extraction
 - [ ] 13. Parse structured JSON response into ExtractedData
 - [ ] 14. Connect API key from KeychainService
