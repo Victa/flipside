@@ -77,15 +77,17 @@
 ### 2. VisionService
 
 - OpenAI GPT-4o-mini Vision API client
-- Extracts: artist, album title, label, catalog number, year
-- Prompt engineering for vinyl-specific OCR
+- Extracts: artist, album title, label, catalog number, year, **track listings**
+- Prompt engineering for vinyl-specific OCR (optimized for singles and EPs)
 - Structured JSON output parsing
 - Error handling and retry logic
+- **Track extraction crucial for singles** (common in vinyl collections)
 
 ### 3. DiscogsService
 
 - Discogs API client (search endpoint)
 - Match scoring algorithm (fuzzy matching on extracted fields)
+- **Uses track titles in search queries** (critical for accurate single/EP matching)
 - Fetches release details and pricing data
 - Rate limit handling:
   - Unauthenticated: 25 requests/minute
@@ -170,8 +172,15 @@ struct ExtractedData: Codable {
     var label: String?
     var catalogNumber: String?
     var year: Int?
+    var tracks: [Track]? // Track listing (critical for singles and EPs)
     var rawText: String
     var confidence: Double
+    
+    struct Track: Codable {
+        var position: String // e.g., "1", "A1", "B2"
+        var title: String
+        var artist: String? // Optional artist credit if different from main artist
+    }
 }
 ```
 
@@ -279,10 +288,10 @@ struct SocialContext: Codable {
 
 ### Milestone 3: Discogs Matching (Week 2)
 
-- [ ] 16. Create DiscogsService API client (using personal access token from Keychain)
-- [ ] 17. Implement search with extracted fields
-- [ ] 18. Build match scoring algorithm (weighted field comparison)
-- [ ] 19. Display top 3-5 matches with confidence scores
+- [x] 16. Create DiscogsService API client (using personal access token from Keychain)
+- [x] 17. Implement search with extracted fields
+- [x] 18. Build match scoring algorithm (weighted field comparison)
+- [x] 19. Display top 3-5 matches with confidence scores
 
 ### Milestone 4: Persistence (Week 2-3)
 

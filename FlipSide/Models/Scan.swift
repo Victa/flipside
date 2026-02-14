@@ -49,8 +49,15 @@ struct ExtractedData: Codable {
     var label: String?
     var catalogNumber: String?
     var year: Int?
+    var tracks: [Track]? // Track listing (critical for singles and EPs)
     var rawText: String
     var confidence: Double
+    
+    struct Track: Codable {
+        var position: String // e.g., "1", "A1", "B2"
+        var title: String
+        var artist: String? // Optional artist credit if different from main artist
+    }
 }
 
 struct DiscogsMatch: Codable {

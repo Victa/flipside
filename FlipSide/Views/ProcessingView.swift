@@ -29,9 +29,15 @@ struct ProcessingView: View {
             Text("Analyzing vinyl record...")
                 .font(.headline)
             
-            Text("Reading text from image")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 4) {
+                Text("Reading text from image")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
+                Text("Searching Discogs database")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
         .navigationTitle("Processing")
