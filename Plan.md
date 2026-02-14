@@ -273,8 +273,8 @@ struct SocialContext: Codable {
 
 - [x] 11. Create VisionService with OpenAI GPT-4o-mini API client
 - [x] 12. Implement prompt for vinyl record text extraction
-- [ ] 13. Parse structured JSON response into ExtractedData
-- [ ] 14. Connect API key from KeychainService
+- [x] 13. Parse structured JSON response into ExtractedData
+- [x] 14. Connect API key from KeychainService
 - [ ] 15. Display extracted text in UI
 
 ### Milestone 3: Discogs Matching (Week 2)
