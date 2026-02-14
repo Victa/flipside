@@ -17,6 +17,7 @@ struct ContentView: View {
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Scan.timestamp, order: .reverse) private var scans: [Scan]
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     
     @State private var showingImageCapture = false
     @State private var showingSettings = false
@@ -42,10 +43,18 @@ struct HistoryView: View {
         NavigationStack(path: $navigationPath) {
             ZStack {
                 // Main content area
-                if scans.isEmpty {
-                    emptyStateView
-                } else {
-                    imageListView
+                VStack(spacing: 0) {
+                    // Offline indicator banner
+                    if !networkMonitor.isConnected {
+                        offlineIndicatorBanner
+                    }
+                    
+                    // Content
+                    if scans.isEmpty {
+                        emptyStateView
+                    } else {
+                        imageListView
+                    }
                 }
                 
                 // Floating Action Button (FAB)
@@ -54,7 +63,12 @@ struct HistoryView: View {
                     HStack {
                         Spacer()
                         Button {
-                            showingImageCapture = true
+                            if !networkMonitor.isConnected {
+                                alertMessage = "You're currently offline. Internet connection is required to scan new records."
+                                showAlert = true
+                            } else {
+                                showingImageCapture = true
+                            }
                         } label: {
                             Image(systemName: "plus")
                                 .font(.title2)
@@ -146,12 +160,43 @@ struct HistoryView: View {
         }
     }
     
+    // MARK: - Offline Indicator
+    
+    private var offlineIndicatorBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+                .font(.subheadline)
+            Text("Offline - Viewing saved scans only")
+                .font(.subheadline)
+        }
+        .foregroundStyle(.white)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(Color.orange)
+    }
+    
     private var emptyStateView: some View {
-        VStack {
-            Text("History View")
-                .font(.largeTitle)
-            Text("Past scans will appear here...")
+        VStack(spacing: 16) {
+            Image(systemName: "vinyl.circle")
+                .font(.system(size: 80))
                 .foregroundStyle(.secondary)
+            
+            Text("No Scans Yet")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Tap the + button to scan your first vinyl record")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            if !networkMonitor.isConnected {
+                Text("Internet connection required to scan records")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.top, 8)
+            }
         }
     }
     

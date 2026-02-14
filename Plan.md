@@ -295,10 +295,10 @@ struct SocialContext: Codable {
 
 ### Milestone 4: Persistence (Week 2-3)
 
-- [ ] 20. Define SwiftData models (Scan with Codable structs for ExtractedData, DiscogsMatch)
-- [ ] 21. Implement save/load for scans (images stored as files, paths in SwiftData)
-- [ ] 22. Build HistoryView with list of past scans
-- [ ] 23. Add offline viewing for saved results
+- [x] 20. Define SwiftData models (Scan with Codable structs for ExtractedData, DiscogsMatch)
+- [x] 21. Implement save/load for scans (images stored as files, paths in SwiftData)
+- [x] 22. Build HistoryView with list of past scans
+- [x] 23. Add offline viewing for saved results
 
 ### Milestone 5: UI Polish (Week 3)
 
