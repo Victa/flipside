@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     var body: some View {
@@ -14,19 +15,22 @@ struct ContentView: View {
 }
 
 struct HistoryView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Scan.timestamp, order: .reverse) private var scans: [Scan]
+    
     @State private var showingImageCapture = false
     @State private var showingSettings = false
-    @State private var capturedImages: [CapturedImageInfo] = []
     @State private var showAlert = false
     @State private var alertMessage = ""
-    @State private var isAPIKeyConfigured: Bool = false // State variable to track API key status
+    @State private var isAPIKeyConfigured: Bool = false
     @State private var navigationPath = NavigationPath()
     @State private var isProcessing = false
     @State private var currentImage: UIImage?
     @State private var currentExtractedData: ExtractedData?
     
-    // KeychainService instance for first-run check
+    // Services
     private let keychainService = KeychainService.shared
+    private let persistenceService = PersistenceService.shared
     
     // Helper function to check and update API key status
     private func updateAPIKeyStatus() {
@@ -38,7 +42,7 @@ struct HistoryView: View {
         NavigationStack(path: $navigationPath) {
             ZStack {
                 // Main content area
-                if capturedImages.isEmpty {
+                if scans.isEmpty {
                     emptyStateView
                 } else {
                     imageListView
@@ -153,44 +157,75 @@ struct HistoryView: View {
     
     private var imageListView: some View {
         List {
-            ForEach(capturedImages) { imageInfo in
-                HStack {
-                    if let image = loadImageFromDocuments(filename: imageInfo.filename) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 60, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        if let extractedData = imageInfo.extractedData {
-                            if let artist = extractedData.artist, let album = extractedData.album {
-                                Text("\(artist) - \(album)")
+            ForEach(scans) { scan in
+                Button {
+                    openScan(scan)
+                } label: {
+                    HStack {
+                        if let image = persistenceService.loadImage(from: scan.imagePath) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Primary text: Discogs match title or extracted data
+                            if let firstMatch = scan.discogsMatches.first {
+                                Text(firstMatch.title)
                                     .font(.headline)
-                            } else if let artist = extractedData.artist {
-                                Text(artist)
-                                    .font(.headline)
-                            } else if let album = extractedData.album {
-                                Text(album)
-                                    .font(.headline)
+                                    .lineLimit(2)
+                            } else if let extractedData = scan.extractedData {
+                                if let artist = extractedData.artist, let album = extractedData.album {
+                                    Text("\(artist) - \(album)")
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                } else if let artist = extractedData.artist {
+                                    Text(artist)
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                } else if let album = extractedData.album {
+                                    Text(album)
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                } else {
+                                    Text("Unknown Record")
+                                        .font(.headline)
+                                }
                             } else {
                                 Text("Unknown Record")
                                     .font(.headline)
                             }
-                            Text(imageInfo.timestamp, style: .date)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(imageInfo.timestamp, style: .date)
-                                .font(.headline)
-                            Text(imageInfo.timestamp, style: .time)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            
+                            // Secondary text: Label and catalog number
+                            if let firstMatch = scan.discogsMatches.first {
+                                let labelInfo = [firstMatch.label, firstMatch.catalogNumber]
+                                    .compactMap { $0 }
+                                    .joined(separator: " • ")
+                                if !labelInfo.isEmpty {
+                                    Text(labelInfo)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            } else if let extractedData = scan.extractedData {
+                                let labelInfo = [extractedData.label, extractedData.catalogNumber]
+                                    .compactMap { $0 }
+                                    .joined(separator: " • ")
+                                if !labelInfo.isEmpty {
+                                    Text(labelInfo)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
                         }
                     }
                 }
+                .buttonStyle(.plain)
             }
+            .onDelete(perform: deleteScans)
         }
     }
     
@@ -234,19 +269,15 @@ struct HistoryView: View {
                 discogsError = "Discogs personal access token not configured. Add it in Settings to search for matches."
             }
             
-            // Save image to documents
-            let captureService = ImageCaptureService()
-            let filename = try await captureService.saveImageToDocuments(image)
+            // Save scan to SwiftData (includes saving image to documents)
+            let scan = try await persistenceService.createAndSaveScan(
+                image: image,
+                extractedData: extractedData,
+                discogsMatches: discogsMatches,
+                to: modelContext
+            )
             
             await MainActor.run {
-                // Add to history
-                let imageInfo = CapturedImageInfo(
-                    filename: filename,
-                    timestamp: Date(),
-                    extractedData: extractedData
-                )
-                capturedImages.insert(imageInfo, at: 0)
-                
                 // Navigate to result view
                 navigationPath.removeLast() // Remove processing view
                 navigationPath.append(ResultDestination(
@@ -266,28 +297,46 @@ struct HistoryView: View {
         }
     }
     
-    private func loadImageFromDocuments(filename: String) -> UIImage? {
-        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return nil
+    private func openScan(_ scan: Scan) {
+        guard let image = persistenceService.loadImage(from: scan.imagePath) else {
+            alertMessage = "Failed to load image for this scan"
+            showAlert = true
+            return
         }
         
-        let fileURL = documentsURL.appendingPathComponent(filename)
-        guard let imageData = try? Data(contentsOf: fileURL) else {
-            return nil
+        // Navigate to ResultView with the scan's data
+        let destination = ResultDestination(
+            image: image,
+            extractedData: scan.extractedData ?? ExtractedData(
+                artist: nil,
+                album: nil,
+                label: nil,
+                catalogNumber: nil,
+                year: nil,
+                tracks: nil,
+                rawText: "",
+                confidence: 0.0
+            ),
+            discogsMatches: scan.discogsMatches,
+            discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
+        )
+        navigationPath.append(destination)
+    }
+    
+    private func deleteScans(at offsets: IndexSet) {
+        do {
+            for index in offsets {
+                let scan = scans[index]
+                try persistenceService.deleteScan(scan, from: modelContext)
+            }
+        } catch {
+            alertMessage = "Failed to delete scan: \(error.localizedDescription)"
+            showAlert = true
         }
-        
-        return UIImage(data: imageData)
     }
 }
 
 // MARK: - Supporting Types
-
-struct CapturedImageInfo: Identifiable {
-    let id = UUID()
-    let filename: String
-    let timestamp: Date
-    let extractedData: ExtractedData?
-}
 
 // Navigation destinations
 struct ProcessingDestination: Hashable {
