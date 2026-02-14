@@ -26,7 +26,7 @@ class ImageCaptureService: NSObject, ObservableObject {
     
     // MARK: - Types
     
-    enum ImageCaptureError: LocalizedError {
+    enum ImageCaptureError: LocalizedError, Equatable {
         case cameraUnavailable
         case cameraAccessDenied
         case photoLibraryAccessDenied
@@ -34,6 +34,22 @@ class ImageCaptureService: NSObject, ObservableObject {
         case photoCaptureFailed
         case imageProcessingFailed
         case saveFailed(Error)
+        
+        static func == (lhs: ImageCaptureError, rhs: ImageCaptureError) -> Bool {
+            switch (lhs, rhs) {
+            case (.cameraUnavailable, .cameraUnavailable),
+                 (.cameraAccessDenied, .cameraAccessDenied),
+                 (.photoLibraryAccessDenied, .photoLibraryAccessDenied),
+                 (.captureSessionSetupFailed, .captureSessionSetupFailed),
+                 (.photoCaptureFailed, .photoCaptureFailed),
+                 (.imageProcessingFailed, .imageProcessingFailed):
+                return true
+            case (.saveFailed, .saveFailed):
+                return true
+            default:
+                return false
+            }
+        }
         
         var errorDescription: String? {
             switch self {
@@ -142,11 +158,6 @@ class ImageCaptureService: NSObject, ObservableObject {
         }
         
         let photoSettings = AVCapturePhotoSettings()
-        
-        // Configure photo settings
-        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
-            photoSettings.photoCodecType = .hevc
-        }
         
         // Enable high quality photo
         photoSettings.maxPhotoDimensions = photoOutput.maxPhotoDimensions

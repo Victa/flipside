@@ -263,8 +263,8 @@ struct SocialContext: Codable {
 - [x] 3. Add `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` to Info.plist
 - [x] 4. Implement ImageCaptureService with AVFoundation (camera) and PHPickerViewController (photo library)
 - [x] 5. Build Floating Action Button (FAB) in HistoryView (bottom-right corner) that opens image capture options sheet
-- [ ] 6. Build ImageCaptureSheet modal with camera capture + photo library picker options
-- [ ] 7. Save captured/selected images to app Documents directory
+- [x] 6. Build ImageCaptureSheet modal with camera capture + photo library picker options
+- [x] 7. Save captured/selected images to app Documents directory
 - [ ] 8. Create KeychainService wrapper
 - [ ] 9. Build SettingsView for API key entry (OpenAI key, Discogs token)
 - [ ] 10. Add first-run check: present SettingsView if no API keys configured

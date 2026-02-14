@@ -15,18 +15,19 @@ struct ContentView: View {
 
 struct HistoryView: View {
     @State private var showingImageCapture = false
+    @State private var capturedImages: [CapturedImageInfo] = []
+    @State private var showAlert = false
+    @State private var alertMessage = ""
     
     var body: some View {
         NavigationStack {
             ZStack {
                 // Main content area
-                VStack {
-                    Text("History View")
-                        .font(.largeTitle)
-                    Text("Past scans will appear here...")
-                        .foregroundStyle(.secondary)
+                if capturedImages.isEmpty {
+                    emptyStateView
+                } else {
+                    imageListView
                 }
-                .navigationTitle("Flip Side")
                 
                 // Floating Action Button (FAB)
                 VStack {
@@ -50,13 +51,97 @@ struct HistoryView: View {
                     }
                 }
             }
+            .navigationTitle("Flip Side")
             .sheet(isPresented: $showingImageCapture) {
-                // ImageCaptureSheet will be implemented in step 6
-                Text("Image Capture Options")
-                    .presentationDetents([.medium])
+                ImageCaptureSheet { image in
+                    handleImageCaptured(image)
+                }
+            }
+            .alert("Success", isPresented: $showAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(alertMessage)
             }
         }
     }
+    
+    private var emptyStateView: some View {
+        VStack {
+            Text("History View")
+                .font(.largeTitle)
+            Text("Past scans will appear here...")
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    private var imageListView: some View {
+        List {
+            ForEach(capturedImages) { imageInfo in
+                HStack {
+                    if let image = loadImageFromDocuments(filename: imageInfo.filename) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text(imageInfo.timestamp, style: .date)
+                            .font(.headline)
+                        Text(imageInfo.timestamp, style: .time)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleImageCaptured(_ image: UIImage) {
+        Task {
+            do {
+                let captureService = ImageCaptureService()
+                let filename = try await captureService.saveImageToDocuments(image)
+                
+                await MainActor.run {
+                    let imageInfo = CapturedImageInfo(
+                        filename: filename,
+                        timestamp: Date()
+                    )
+                    capturedImages.insert(imageInfo, at: 0)
+                    alertMessage = "Image saved successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "Failed to save image: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+    
+    private func loadImageFromDocuments(filename: String) -> UIImage? {
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        
+        let fileURL = documentsURL.appendingPathComponent(filename)
+        guard let imageData = try? Data(contentsOf: fileURL) else {
+            return nil
+        }
+        
+        return UIImage(data: imageData)
+    }
+}
+
+// MARK: - Supporting Types
+
+struct CapturedImageInfo: Identifiable {
+    let id = UUID()
+    let filename: String
+    let timestamp: Date
 }
 
 #Preview {
