@@ -260,8 +260,8 @@ struct SocialContext: Codable {
 
 - [x] 1. Initialize Xcode project with SwiftUI + SwiftData (target: iOS 17.0)
 - [x] 2. **REFACTOR:** Remove TabView structure and consolidate to single HistoryView as main screen with FAB (since two-view structure was already built in step 1)
-- [ ] 3. Add `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` to Info.plist
-- [ ] 4. Implement ImageCaptureService with AVFoundation (camera) and PHPickerViewController (photo library)
+- [x] 3. Add `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` to Info.plist
+- [x] 4. Implement ImageCaptureService with AVFoundation (camera) and PHPickerViewController (photo library)
 - [ ] 5. Build Floating Action Button (FAB) in HistoryView (bottom-right corner) that opens image capture options sheet
 - [ ] 6. Build ImageCaptureSheet modal with camera capture + photo library picker options
 - [ ] 7. Save captured/selected images to app Documents directory
