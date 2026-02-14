@@ -16,6 +16,8 @@
 		86AC39FAD1914573A51A2F78 /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35862C30A935DEC9412C2DF2 /* Scan.swift */; };
 		A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */; };
 		AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */; };
+		BF1234567890ABCD12345678 /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9876543210FEDC98765432 /* ProcessingView.swift */; };
+		CF2345678901BCDE23456789 /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8765432109EDCB87654321 /* ResultView.swift */; };
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
 /* End PBXBuildFile section */
 
@@ -31,6 +33,8 @@
 		95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureService.swift; sourceTree = "<group>"; };
 		9BDF0856DA2E3DFDB893F653 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
+		CD9876543210FEDC98765432 /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
+		DE8765432109EDCB87654321 /* ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultView.swift; sourceTree = "<group>"; };
 		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -62,6 +66,8 @@
 				3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */,
 				5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */,
 				77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */,
+				CD9876543210FEDC98765432 /* ProcessingView.swift */,
+				DE8765432109EDCB87654321 /* ResultView.swift */,
 				369F06060C9C3910E329F9D6 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -153,6 +159,8 @@
 				A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */,
 				AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */,
 				84FA0A8493641F8EB680A2CE /* PhotoLibraryPicker.swift in Sources */,
+				BF1234567890ABCD12345678 /* ProcessingView.swift in Sources */,
+				CF2345678901BCDE23456789 /* ResultView.swift in Sources */,
 				86AC39FAD1914573A51A2F78 /* Scan.swift in Sources */,
 				0063BD5382F3078CFBF4B7A7 /* SettingsView.swift in Sources */,
 				34BD86082ABF7992AEB7DE2C /* VisionService.swift in Sources */,
