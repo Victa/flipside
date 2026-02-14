@@ -267,7 +267,7 @@ struct SocialContext: Codable {
 - [x] 7. Save captured/selected images to app Documents directory
 - [x] 8. Create KeychainService wrapper
 - [x] 9. Build SettingsView for API key entry (OpenAI key, Discogs token)
-- [ ] 10. Add first-run check: present SettingsView if no API keys configured
+- [x] 10. Add first-run check: present SettingsView if no API keys configured
 
 ### Milestone 2: Vision Integration (Week 1-2)
 
