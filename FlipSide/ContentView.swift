@@ -15,6 +15,7 @@ struct ContentView: View {
 
 struct HistoryView: View {
     @State private var showingImageCapture = false
+    @State private var showingSettings = false
     @State private var capturedImages: [CapturedImageInfo] = []
     @State private var showAlert = false
     @State private var alertMessage = ""
@@ -52,10 +53,22 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle("Flip Side")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
             .sheet(isPresented: $showingImageCapture) {
                 ImageCaptureSheet { image in
                     handleImageCaptured(image)
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
             .alert("Success", isPresented: $showAlert) {
                 Button("OK", role: .cancel) {}

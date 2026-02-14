@@ -15,6 +15,7 @@
 		A3A3A3A3A3A3A3A3A3A3A3A3 /* PhotoLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */; };
 		A4A4A4A4A4A4A4A4A4A4A4A4 /* ImageCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */; };
 		A5A5A5A5A5A5A5A5A5A5A5A5 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B5B5B5B5B5B5B5B5B5B5B5 /* KeychainService.swift */; };
+		A6A6A6A6A6A6A6A6A6A6A6A6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 		B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryPicker.swift; sourceTree = "<group>"; };
 		B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
 		B5B5B5B5B5B5B5B5B5B5B5B5 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
 		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -67,6 +69,7 @@
 				B2B2B2B2B2B2B2B2B2B2B2B2 /* CameraPreviewView.swift */,
 				B3B3B3B3B3B3B3B3B3B3B3B3 /* PhotoLibraryPicker.swift */,
 				B4B4B4B4B4B4B4B4B4B4B4B4 /* ImageCaptureSheet.swift */,
+				B6B6B6B6B6B6B6B6B6B6B6B6 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -148,6 +151,7 @@
 				A3A3A3A3A3A3A3A3A3A3A3A3 /* PhotoLibraryPicker.swift in Sources */,
 				A4A4A4A4A4A4A4A4A4A4A4A4 /* ImageCaptureSheet.swift in Sources */,
 				A5A5A5A5A5A5A5A5A5A5A5A5 /* KeychainService.swift in Sources */,
+				A6A6A6A6A6A6A6A6A6A6A6A6 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
