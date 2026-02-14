@@ -19,6 +19,16 @@ struct HistoryView: View {
     @State private var capturedImages: [CapturedImageInfo] = []
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var isAPIKeyConfigured: Bool = false // State variable to track API key status
+    
+    // KeychainService instance for first-run check
+    private let keychainService = KeychainService.shared
+    
+    // Helper function to check and update API key status
+    private func updateAPIKeyStatus() {
+        // Only OpenAI API key is required (Discogs is optional)
+        isAPIKeyConfigured = keychainService.openAIAPIKey != nil
+    }
     
     var body: some View {
         NavigationStack {
@@ -47,6 +57,8 @@ struct HistoryView: View {
                                 .clipShape(Circle())
                                 .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                         }
+                        .disabled(!isAPIKeyConfigured)
+                        .opacity(isAPIKeyConfigured ? 1.0 : 0.5)
                         .padding(.trailing, 20)
                         .padding(.bottom, 20)
                     }
@@ -58,7 +70,17 @@ struct HistoryView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Image(systemName: "gearshape")
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "gearshape")
+                            
+                            // Red dot badge when API keys are not configured
+                            if !isAPIKeyConfigured {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 4, y: -4)
+                            }
+                        }
                     }
                 }
             }
@@ -67,7 +89,11 @@ struct HistoryView: View {
                     handleImageCaptured(image)
                 }
             }
-            .sheet(isPresented: $showingSettings) {
+            .sheet(isPresented: $showingSettings, onDismiss: {
+                // Re-check API key status when settings sheet is dismissed
+                // This ensures the badge and FAB state update after API keys are configured
+                updateAPIKeyStatus()
+            }) {
                 SettingsView()
             }
             .alert("Success", isPresented: $showAlert) {
@@ -75,6 +101,19 @@ struct HistoryView: View {
             } message: {
                 Text(alertMessage)
             }
+            .onAppear {
+                updateAPIKeyStatus()
+                checkFirstRun()
+            }
+        }
+    }
+    
+    // MARK: - First Run Check
+    
+    private func checkFirstRun() {
+        // Check if OpenAI API key is configured (required)
+        if keychainService.openAIAPIKey == nil {
+            showingSettings = true
         }
     }
     
