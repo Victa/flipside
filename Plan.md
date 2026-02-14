@@ -279,7 +279,7 @@ struct SocialContext: Codable {
 
 ### Milestone 3: Discogs Matching (Week 2)
 
-- [ ] 16. Create DiscogsService API client (using personal access token from Keychain)
+- [x] 16. Create DiscogsService API client (using personal access token from Keychain)
 - [ ] 17. Implement search with extracted fields
 - [ ] 18. Build match scoring algorithm (weighted field comparison)
 - [ ] 19. Display top 3-5 matches with confidence scores
