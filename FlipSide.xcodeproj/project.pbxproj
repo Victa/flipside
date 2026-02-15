@@ -25,6 +25,7 @@
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
 		9E2F4A7B5C8D3E1F6A4B8D29 /* DiscogsMatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */; };
 		5F3A8D6C4E9B2A7F8D1C3E4B /* DiscogsMatchCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */; };
+		3A9D5E7C8B4F2A1D6E9C8B5F /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C9B2A5F8D3A1E6C9B7F4D /* CachedAsyncImage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		3F710380C860B44B2210F50C /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
 		4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsMatchCard.swift; sourceTree = "<group>"; };
 		2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsMatchCarousel.swift; sourceTree = "<group>"; };
+		7E4C9B2A5F8D3A1E6C9B7F4D /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
 		3B9A7F5E2C6D48A9B1E4D273 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryPicker.swift; sourceTree = "<group>"; };
@@ -90,6 +92,7 @@
 		8B5D7E2A9F3C4B6D1E8A5C72 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				7E4C9B2A5F8D3A1E6C9B7F4D /* CachedAsyncImage.swift */,
 				4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */,
 				2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */,
 			);
@@ -178,6 +181,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3A9D5E7C8B4F2A1D6E9C8B5F /* CachedAsyncImage.swift in Sources */,
 				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
 				2F8A9C4E5B7D6F1A3E4C8D92 /* DetailView.swift in Sources */,

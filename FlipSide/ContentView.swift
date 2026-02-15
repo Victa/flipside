@@ -224,12 +224,43 @@ struct HistoryView: View {
                     openScan(scan)
                 } label: {
                     HStack {
-                        if let image = persistenceService.loadImage(from: scan.imagePath) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
+                        // Show Discogs artwork if a match was selected, otherwise show scanned image
+                        Group {
+                            if let selectedIndex = scan.selectedMatchIndex,
+                               selectedIndex >= 0,
+                               selectedIndex < scan.discogsMatches.count,
+                               let imageUrl = scan.discogsMatches[selectedIndex].imageUrl {
+                                // Show cached Discogs artwork
+                                CachedAsyncImage(url: imageUrl) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    ZStack {
+                                        Color.gray.opacity(0.2)
+                                        Image(systemName: "photo")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                                 .frame(width: 60, height: 60)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else if let image = persistenceService.loadImage(from: scan.imagePath) {
+                                // Fallback to scanned image
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                // Placeholder if both fail
+                                ZStack {
+                                    Color.gray.opacity(0.2)
+                                    Image(systemName: "photo")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
