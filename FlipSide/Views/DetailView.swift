@@ -1093,6 +1093,7 @@ struct DetailView: View {
         
         await MainActor.run {
             isAddingToCollection = true
+            collectionError = nil
         }
         
         do {
@@ -1100,6 +1101,7 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
+            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInCollection = true
@@ -1119,6 +1121,7 @@ struct DetailView: View {
         
         await MainActor.run {
             isRemovingFromCollection = true
+            collectionError = nil
         }
         
         do {
@@ -1126,6 +1129,7 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
+            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInCollection = false
@@ -1145,6 +1149,7 @@ struct DetailView: View {
         
         await MainActor.run {
             isAddingToWantlist = true
+            collectionError = nil
         }
         
         do {
@@ -1152,6 +1157,7 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
+            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInWantlist = true
@@ -1171,6 +1177,7 @@ struct DetailView: View {
         
         await MainActor.run {
             isRemovingFromWantlist = true
+            collectionError = nil
         }
         
         do {
@@ -1178,6 +1185,7 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
+            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInWantlist = false
@@ -1204,6 +1212,10 @@ struct DetailView: View {
             scan.isInWantlist = isInWantlist
             try? modelContext.save()
         }
+    }
+
+    private func refreshLibraryListsFromDiscogs() async {
+        _ = await DiscogsLibraryViewModel.shared.refreshAll(modelContext: modelContext)
     }
     
     // MARK: - Helper Methods

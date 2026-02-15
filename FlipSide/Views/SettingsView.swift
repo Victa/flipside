@@ -1,42 +1,109 @@
-//
-//  SettingsView.swift
-//  FlipSide
-//
-//  Settings view for managing API keys and Discogs account configuration.
-//
-
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    
-    // State for API keys
+    @Environment(\.modelContext) private var modelContext
+
+    @StateObject private var libraryViewModel = DiscogsLibraryViewModel.shared
+
     @State private var openAIAPIKey: String = ""
     @State private var discogsPersonalToken: String = ""
     @State private var discogsUsername: String = ""
-    
-    // State for UI feedback
     @State private var showingSaveAlert = false
     @State private var saveAlertMessage = ""
     @State private var saveAlertTitle = "Success"
     @State private var isSavingOpenAI = false
     @State private var isSavingDiscogs = false
     @State private var isSavingUsername = false
-    
-    // KeychainService instance
+    @State private var isRefreshingLibrary = false
+    @State private var refreshStatusMessage: String?
+    @State private var refreshStatusStyle: Color = .secondary
     private let keychainService = KeychainService.shared
-    
+
     var body: some View {
         NavigationStack {
             Form {
-                // OpenAI API Key Section
+                Section {
+                    TextField("Enter your Discogs username", text: $discogsUsername)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+
+                    HStack {
+                        Text("Current Status:")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if !(keychainService.discogsUsername ?? "").isEmpty {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Saved")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.orange)
+                            Text("Not set")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .font(.caption)
+
+                    Button(action: saveDiscogsUsername) {
+                        HStack {
+                            Spacer()
+                            if isSavingUsername {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .padding(.trailing, 8)
+                            }
+                            Text("Save Discogs Username")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                    .disabled(discogsUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingUsername)
+                } header: {
+                    Text("Discogs Username")
+                } footer: {
+                    Text("Required for syncing your collection and wantlist.")
+                        .font(.caption)
+                }
+
+                Section {
+                    Button(action: refreshLibrary) {
+                        HStack {
+                            Spacer()
+                            if isRefreshingLibrary {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .padding(.trailing, 8)
+                            }
+                            Text("Refresh Collection/Wantlist")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                    }
+                    .disabled(isRefreshingLibrary || (keychainService.discogsUsername ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    if let refreshStatusMessage {
+                        Text(refreshStatusMessage)
+                            .font(.caption)
+                            .foregroundStyle(refreshStatusStyle)
+                    }
+
+                    refreshTimestampRow
+                } header: {
+                    Text("Library Sync")
+                } footer: {
+                    Text("Uses your Discogs username to fetch collection and wantlist, then updates local cache.")
+                        .font(.caption)
+                }
+
                 Section {
                     SecureField("Enter your OpenAI API key", text: $openAIAPIKey)
                         .textContentType(.password)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
-                    
-                    // Current Status
+
                     HStack {
                         Text("Current Status:")
                             .foregroundStyle(.secondary)
@@ -54,8 +121,7 @@ struct SettingsView: View {
                         }
                     }
                     .font(.caption)
-                    
-                    // Save Button
+
                     Button(action: saveOpenAIKey) {
                         HStack {
                             Spacer()
@@ -79,15 +145,13 @@ struct SettingsView: View {
                             .font(.caption)
                     }
                 }
-                
-                // Discogs Personal Access Token Section
+
                 Section {
                     SecureField("Enter your Discogs token", text: $discogsPersonalToken)
                         .textContentType(.password)
                         .autocapitalization(.none)
                         .autocorrectionDisabled()
-                    
-                    // Current Status
+
                     HStack {
                         Text("Current Status:")
                             .foregroundStyle(.secondary)
@@ -105,8 +169,7 @@ struct SettingsView: View {
                         }
                     }
                     .font(.caption)
-                    
-                    // Save Button
+
                     Button(action: saveDiscogsToken) {
                         HStack {
                             Spacer()
@@ -130,58 +193,6 @@ struct SettingsView: View {
                             .font(.caption)
                     }
                 }
-                
-                // Discogs Username Section
-                Section {
-                    TextField("Enter your Discogs username", text: $discogsUsername)
-                        .textContentType(.username)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
-                    
-                    // Current Status
-                    HStack {
-                        Text("Current Status:")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        if keychainService.discogsUsername != nil {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Saved")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.orange)
-                            Text("Not set")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .font(.caption)
-                    
-                    // Save Button
-                    Button(action: saveDiscogsUsername) {
-                        HStack {
-                            Spacer()
-                            if isSavingUsername {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .padding(.trailing, 8)
-                            }
-                            Text("Save Username")
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                    }
-                    .disabled(discogsUsername.isEmpty || isSavingUsername)
-                } header: {
-                    Text("Discogs Username")
-                } footer: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Required for collection and wantlist features. Your Discogs username can be found in your profile settings.")
-                            .font(.caption)
-                    }
-                }
-                
-                // Clear All Keys Section
                 Section {
                     Button(role: .destructive, action: clearAllKeys) {
                         HStack {
@@ -190,9 +201,13 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
-                    .disabled(keychainService.openAIAPIKey == nil && keychainService.discogsPersonalToken == nil && keychainService.discogsUsername == nil)
+                    .disabled(
+                        keychainService.openAIAPIKey == nil &&
+                        keychainService.discogsPersonalToken == nil &&
+                        keychainService.discogsUsername == nil
+                    )
                 } footer: {
-                    Text("This will remove all API keys and username from secure storage.")
+                    Text("This will remove API keys and Discogs username from secure storage.")
                         .font(.caption)
                 }
             }
@@ -211,87 +226,46 @@ struct SettingsView: View {
                 Text(saveAlertMessage)
             }
             .onAppear {
-                loadCurrentKeys()
+                loadCurrentValues()
             }
         }
     }
-    
-    // MARK: - Private Methods
-    
-    private func loadCurrentKeys() {
-        // Load existing keys from keychain (show placeholder text, not actual keys for security)
-        if keychainService.openAIAPIKey != nil {
-            openAIAPIKey = "" // Don't show actual key
-        }
-        if keychainService.discogsPersonalToken != nil {
-            discogsPersonalToken = "" // Don't show actual token
-        }
-        if let username = keychainService.discogsUsername {
-            discogsUsername = username // Show username (not sensitive)
-        }
-    }
-    
-    private func saveOpenAIKey() {
-        isSavingOpenAI = true
-        
-        Task {
-            do {
-                try keychainService.setOpenAIAPIKey(openAIAPIKey)
-                
-                await MainActor.run {
-                    isSavingOpenAI = false
-                    saveAlertTitle = "Success"
-                    saveAlertMessage = "OpenAI API key has been saved securely."
-                    showingSaveAlert = true
-                    
-                    // Clear the text field after saving
-                    openAIAPIKey = ""
-                }
-            } catch {
-                await MainActor.run {
-                    isSavingOpenAI = false
-                    saveAlertTitle = "Error"
-                    saveAlertMessage = "Failed to save OpenAI key: \(error.localizedDescription)"
-                    showingSaveAlert = true
-                }
+
+    private var refreshTimestampRow: some View {
+        HStack {
+            Text("Last Refresh:")
+                .foregroundStyle(.secondary)
+            Spacer()
+            let latest = [
+                libraryViewModel.collectionState.lastRefreshDate,
+                libraryViewModel.wantlistState.lastRefreshDate
+            ]
+                .compactMap { $0 }
+                .max()
+
+            if let latest {
+                Text(latest.formatted(date: .abbreviated, time: .shortened))
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Never")
+                    .foregroundStyle(.secondary)
             }
         }
+        .font(.caption)
     }
-    
-    private func saveDiscogsToken() {
-        isSavingDiscogs = true
-        
-        Task {
-            do {
-                try keychainService.setDiscogsPersonalToken(discogsPersonalToken)
-                
-                await MainActor.run {
-                    isSavingDiscogs = false
-                    saveAlertTitle = "Success"
-                    saveAlertMessage = "Discogs token has been saved securely."
-                    showingSaveAlert = true
-                    
-                    // Clear the text field after saving
-                    discogsPersonalToken = ""
-                }
-            } catch {
-                await MainActor.run {
-                    isSavingDiscogs = false
-                    saveAlertTitle = "Error"
-                    saveAlertMessage = "Failed to save Discogs token: \(error.localizedDescription)"
-                    showingSaveAlert = true
-                }
-            }
-        }
+
+    private func loadCurrentValues() {
+        openAIAPIKey = ""
+        discogsPersonalToken = ""
+        discogsUsername = keychainService.discogsUsername ?? ""
     }
-    
+
     private func saveDiscogsUsername() {
         isSavingUsername = true
-        
+
         Task {
             do {
-                try keychainService.setDiscogsUsername(discogsUsername)
-                
+                try keychainService.setDiscogsUsername(discogsUsername.trimmingCharacters(in: .whitespacesAndNewlines))
                 await MainActor.run {
                     isSavingUsername = false
                     saveAlertTitle = "Success"
@@ -307,23 +281,95 @@ struct SettingsView: View {
                 }
             }
         }
+        if let username = keychainService.discogsUsername {
+            discogsUsername = username // Show username (not sensitive)
+        }
     }
-    
+
+    private func refreshLibrary() {
+        isRefreshingLibrary = true
+        refreshStatusMessage = "Refresh in progress..."
+        refreshStatusStyle = .secondary
+
+        Task {
+            let result = await libraryViewModel.refreshAll(modelContext: modelContext)
+
+            await MainActor.run {
+                isRefreshingLibrary = false
+                if let failure = result.failureMessage {
+                    refreshStatusMessage = "Refresh failed: \(failure)"
+                    refreshStatusStyle = .red
+                } else {
+                    refreshStatusMessage = result.successMessage
+                    refreshStatusStyle = .green
+                }
+            }
+        }
+    }
+
+    private func saveOpenAIKey() {
+        isSavingOpenAI = true
+
+        Task {
+            do {
+                try keychainService.setOpenAIAPIKey(openAIAPIKey)
+
+                await MainActor.run {
+                    isSavingOpenAI = false
+                    saveAlertTitle = "Success"
+                    saveAlertMessage = "OpenAI API key has been saved securely."
+                    showingSaveAlert = true
+                    openAIAPIKey = ""
+                }
+            } catch {
+                await MainActor.run {
+                    isSavingOpenAI = false
+                    saveAlertTitle = "Error"
+                    saveAlertMessage = "Failed to save OpenAI key: \(error.localizedDescription)"
+                    showingSaveAlert = true
+                }
+            }
+        }
+    }
+
+    private func saveDiscogsToken() {
+        isSavingDiscogs = true
+
+        Task {
+            do {
+                try keychainService.setDiscogsPersonalToken(discogsPersonalToken)
+
+                await MainActor.run {
+                    isSavingDiscogs = false
+                    saveAlertTitle = "Success"
+                    saveAlertMessage = "Discogs token has been saved securely."
+                    showingSaveAlert = true
+                    discogsPersonalToken = ""
+                }
+            } catch {
+                await MainActor.run {
+                    isSavingDiscogs = false
+                    saveAlertTitle = "Error"
+                    saveAlertMessage = "Failed to save Discogs token: \(error.localizedDescription)"
+                    showingSaveAlert = true
+                }
+            }
+        }
+    }
     private func clearAllKeys() {
         do {
             try keychainService.deleteAll()
-            
-            // Clear the text fields
+
             openAIAPIKey = ""
             discogsPersonalToken = ""
             discogsUsername = ""
-            
+            refreshStatusMessage = nil
             saveAlertTitle = "Cleared"
-            saveAlertMessage = "All API keys and username have been removed from secure storage."
+            saveAlertMessage = "All saved credentials have been removed from secure storage."
             showingSaveAlert = true
         } catch {
             saveAlertTitle = "Error"
-            saveAlertMessage = "Failed to clear keys: \(error.localizedDescription)"
+            saveAlertMessage = "Failed to clear credentials: \(error.localizedDescription)"
             showingSaveAlert = true
         }
     }

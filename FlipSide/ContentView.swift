@@ -1,93 +1,84 @@
-//
-//  ContentView.swift
-//  FlipSide
-//
-//  Created on 2/14/26.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        HistoryView()
+        AppRootTabView()
     }
 }
 
-struct HistoryView: View {
+struct AppRootTabView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Scan.timestamp, order: .reverse) private var scans: [Scan]
+    @Query private var collectionEntries: [LibraryEntry]
+    @Query private var wantlistEntries: [LibraryEntry]
+
     @StateObject private var networkMonitor = NetworkMonitor.shared
-    
+    @StateObject private var libraryViewModel = DiscogsLibraryViewModel.shared
+
+    @State private var selectedTab: RootTab = .collection
     @State private var showingImageCapture = false
     @State private var showingSettings = false
     @State private var showAlert = false
     @State private var alertMessage = ""
-    @State private var isAPIKeyConfigured: Bool = false
+    @State private var isAPIKeyConfigured = false
     @State private var navigationPath = NavigationPath()
     @State private var isProcessing = false
-    @State private var currentImage: UIImage?
-    @State private var currentExtractedData: ExtractedData?
     @State private var currentProcessingStep: ProcessingStep = .readingImage
-    
-    // Services
+
     private let keychainService = KeychainService.shared
-    private let persistenceService = PersistenceService.shared
-    
-    // Helper function to check and update API key status
-    private func updateAPIKeyStatus() {
-        // Only OpenAI API key is required (Discogs is optional)
-        isAPIKeyConfigured = keychainService.openAIAPIKey != nil
+
+    init() {
+        let collectionRaw = LibraryListType.collection.rawValue
+        let wantlistRaw = LibraryListType.wantlist.rawValue
+        _collectionEntries = Query(
+            filter: #Predicate<LibraryEntry> { entry in
+                entry.listTypeRaw == collectionRaw
+            }
+        )
+        _wantlistEntries = Query(
+            filter: #Predicate<LibraryEntry> { entry in
+                entry.listTypeRaw == wantlistRaw
+            }
+        )
     }
-    
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack {
-                // Main content area
-                VStack(spacing: 0) {
-                    // Offline indicator banner
-                    if !networkMonitor.isConnected {
-                        offlineIndicatorBanner
+                TabView(selection: $selectedTab) {
+                    MyCollectionView(viewModel: libraryViewModel) { entry in
+                        navigationPath.append(
+                            DetailDestination(
+                                match: entry.toDiscogsMatch(),
+                                scanId: nil,
+                                source: .library
+                            )
+                        )
                     }
-                    
-                    // Content
-                    if scans.isEmpty {
-                        emptyStateView
-                    } else {
-                        imageListView
+                    .tabItem {
+                        Label("My Collection", systemImage: "square.stack.3d.up")
                     }
+                    .tag(RootTab.collection)
+
+                    MyWantlistView(viewModel: libraryViewModel) { entry in
+                        navigationPath.append(
+                            DetailDestination(
+                                match: entry.toDiscogsMatch(),
+                                scanId: nil,
+                                source: .library
+                            )
+                        )
+                    }
+                    .tabItem {
+                        Label("My Wantlist", systemImage: "heart")
+                    }
+                    .tag(RootTab.wantlist)
                 }
-                
-                // Floating Action Button (FAB)
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            if !networkMonitor.isConnected {
-                                alertMessage = "You're currently offline. Internet connection is required to scan new records."
-                                showAlert = true
-                            } else {
-                                showingImageCapture = true
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.accentColor)
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                        .disabled(!isAPIKeyConfigured || isProcessing)
-                        .opacity(isAPIKeyConfigured && !isProcessing ? 1.0 : 0.5)
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
-                    }
-                }
+
+                floatingActionButton
             }
-            .navigationTitle("Flip Side")
+            .navigationTitle(selectedTabTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: ProcessingDestination.self) { destination in
                 ProcessingView(image: destination.image, currentStep: currentProcessingStep)
                     .task {
@@ -102,18 +93,23 @@ struct HistoryView: View {
                     discogsError: destination.discogsError,
                     scanId: destination.scanId,
                     onMatchSelected: { match, index in
-                        // Find and update the scan's selectedMatchIndex
-                        let scanId = destination.scanId  // Capture value for Predicate macro
-                        let fetchDescriptor = FetchDescriptor<Scan>(
-                            predicate: #Predicate { $0.id == scanId }
-                        )
-                        if let scan = try? modelContext.fetch(fetchDescriptor).first {
-                            scan.selectedMatchIndex = index
-                            try? modelContext.save()
+                        if let scanId = destination.scanId {
+                            let fetchDescriptor = FetchDescriptor<Scan>(
+                                predicate: #Predicate { $0.id == scanId }
+                            )
+                            if let scan = try? modelContext.fetch(fetchDescriptor).first {
+                                scan.selectedMatchIndex = index
+                                try? modelContext.save()
+                            }
                         }
-                        
-                        // Navigate to DetailView
-                        navigationPath.append(DetailDestination(match: match, scanId: destination.scanId))
+
+                        navigationPath.append(
+                            DetailDestination(
+                                match: match,
+                                scanId: destination.scanId,
+                                source: destination.source
+                            )
+                        )
                     }
                 )
             }
@@ -122,8 +118,14 @@ struct HistoryView: View {
                     match: destination.match,
                     scanId: destination.scanId,
                     onDone: {
-                        // Clear navigation path to return to HistoryView
-                        navigationPath.removeLast(navigationPath.count)
+                        switch destination.source {
+                        case .scanUtility:
+                            navigationPath.removeLast(navigationPath.count)
+                        case .library:
+                            if navigationPath.count > 0 {
+                                navigationPath.removeLast()
+                            }
+                        }
                     }
                 )
             }
@@ -134,8 +136,7 @@ struct HistoryView: View {
                     } label: {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "gearshape")
-                            
-                            // Red dot badge when API keys are not configured
+
                             if !isAPIKeyConfigured {
                                 Circle()
                                     .fill(Color.red)
@@ -152,8 +153,6 @@ struct HistoryView: View {
                 }
             }
             .sheet(isPresented: $showingSettings, onDismiss: {
-                // Re-check API key status when settings sheet is dismissed
-                // This ensures the badge and FAB state update after API keys are configured
                 updateAPIKeyStatus()
             }) {
                 SettingsView()
@@ -163,7 +162,6 @@ struct HistoryView: View {
                     title: Text(alertMessage.contains("Error") ? "Error" : "Success"),
                     message: Text(alertMessage),
                     dismissButton: .default(Text("OK")) {
-                        // If there was an error, go back to history
                         if alertMessage.contains("Error") {
                             navigationPath.removeLast(navigationPath.count)
                         }
@@ -176,181 +174,71 @@ struct HistoryView: View {
             }
         }
     }
-    
-    // MARK: - First Run Check
-    
+
+    private var selectedTabTitle: String {
+        switch selectedTab {
+        case .collection:
+            return "My Collection (\(collectionEntries.count))"
+        case .wantlist:
+            return "My Wantlist (\(wantlistEntries.count))"
+        }
+    }
+
+    private var floatingActionButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Button {
+                    if !networkMonitor.isConnected {
+                        alertMessage = "You're currently offline. Internet connection is required to scan new records."
+                        showAlert = true
+                    } else {
+                        showingImageCapture = true
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Color.accentColor)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .disabled(!isAPIKeyConfigured || isProcessing)
+                .opacity(isAPIKeyConfigured && !isProcessing ? 1.0 : 0.5)
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+            }
+        }
+    }
+
+    private func updateAPIKeyStatus() {
+        isAPIKeyConfigured = keychainService.openAIAPIKey != nil
+    }
+
     private func checkFirstRun() {
-        // Check if OpenAI API key is configured (required)
         if keychainService.openAIAPIKey == nil {
             showingSettings = true
         }
     }
-    
-    // MARK: - Offline Indicator
-    
-    private var offlineIndicatorBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.slash")
-                .font(.subheadline)
-            Text("Offline - Viewing saved scans only")
-                .font(.subheadline)
-        }
-        .foregroundStyle(.white)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
-        .background(Color.orange)
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "vinyl.circle")
-                .font(.system(size: 80))
-                .foregroundStyle(.secondary)
-            
-            Text("No Scans Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Tap the + button to scan your first vinyl record")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            if !networkMonitor.isConnected {
-                Text("Internet connection required to scan records")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(.top, 8)
-            }
-        }
-    }
-    
-    private var imageListView: some View {
-        List {
-            ForEach(scans) { scan in
-                Button {
-                    openScan(scan)
-                } label: {
-                    HStack {
-                        // Show Discogs artwork if a match was selected, otherwise show scanned image
-                        Group {
-                            if let selectedIndex = scan.selectedMatchIndex,
-                               selectedIndex >= 0,
-                               selectedIndex < scan.discogsMatches.count,
-                               let imageUrl = scan.discogsMatches[selectedIndex].imageUrl {
-                                // Show cached Discogs artwork
-                                CachedAsyncImage(url: imageUrl) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } placeholder: {
-                                    ZStack {
-                                        Color.gray.opacity(0.2)
-                                        Image(systemName: "photo")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .frame(width: 60, height: 60)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            } else if let image = persistenceService.loadImage(from: scan.imagePath) {
-                                // Fallback to scanned image
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            } else {
-                                // Placeholder if both fail
-                                ZStack {
-                                    Color.gray.opacity(0.2)
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(width: 60, height: 60)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Primary text: Discogs match title or extracted data
-                            if let firstMatch = scan.discogsMatches.first {
-                                Text(firstMatch.title)
-                                    .font(.headline)
-                                    .lineLimit(2)
-                            } else if let extractedData = scan.extractedData {
-                                if let artist = extractedData.artist, let album = extractedData.album {
-                                    Text("\(artist) - \(album)")
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                } else if let artist = extractedData.artist {
-                                    Text(artist)
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                } else if let album = extractedData.album {
-                                    Text(album)
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                } else {
-                                    Text("Unknown Record")
-                                        .font(.headline)
-                                }
-                            } else {
-                                Text("Unknown Record")
-                                    .font(.headline)
-                            }
-                            
-                            // Secondary text: Label and catalog number
-                            if let firstMatch = scan.discogsMatches.first {
-                                let labelInfo = [firstMatch.label, firstMatch.catalogNumber]
-                                    .compactMap { $0 }
-                                    .joined(separator: " • ")
-                                if !labelInfo.isEmpty {
-                                    Text(labelInfo)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                            } else if let extractedData = scan.extractedData {
-                                let labelInfo = [extractedData.label, extractedData.catalogNumber]
-                                    .compactMap { $0 }
-                                    .joined(separator: " • ")
-                                if !labelInfo.isEmpty {
-                                    Text(labelInfo)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            .onDelete(perform: deleteScans)
-        }
-    }
-    
+
     private func handleImageCaptured(_ image: UIImage) {
-        // Navigate to processing view
-        currentImage = image
         currentProcessingStep = .readingImage
         navigationPath.append(ProcessingDestination(image: image))
     }
-    
+
     private func performExtraction(image: UIImage) async {
         isProcessing = true
-        
-        // Reset to first step
+
         await MainActor.run {
             currentProcessingStep = .readingImage
         }
-        
+
         do {
-            // Call VisionService to extract vinyl info
             var extractedData = try await VisionService.shared.extractVinylInfo(from: image)
-            
-            // Sanitize extracted data: convert string "null" to actual nil
+
             extractedData = ExtractedData(
                 artist: extractedData.artist?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.artist?.lowercased() == "null" ? nil : extractedData.artist,
                 album: extractedData.album?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true || extractedData.album?.lowercased() == "null" ? nil : extractedData.album,
@@ -361,46 +249,37 @@ struct HistoryView: View {
                 rawText: extractedData.rawText,
                 confidence: extractedData.confidence
             )
-            
-            // Move to Discogs search step
+
             await MainActor.run {
                 currentProcessingStep = .searchingDiscogs
             }
-            
-            // Search Discogs for matches (basic data only, details fetched on-demand in DetailView)
+
             var discogsMatches: [DiscogsMatch] = []
-            var discogsError: String? = nil
+            var discogsError: String?
+
             if KeychainService.shared.discogsPersonalToken != nil {
                 do {
-                    // Use searchReleases for fast basic search (3-5x faster than searchAndFetchDetails)
                     discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
                 } catch {
-                    // Capture error message to display in UI
                     discogsError = error.localizedDescription
                     print("Discogs search failed: \(error.localizedDescription)")
                 }
             } else {
                 discogsError = "Discogs personal access token not configured. Add it in Settings to search for matches."
             }
-            
-            // Save scan to SwiftData (includes saving image to documents)
-            let scan = try await persistenceService.createAndSaveScan(
-                image: image,
-                extractedData: extractedData,
-                discogsMatches: discogsMatches,
-                to: modelContext
-            )
-            
+
             await MainActor.run {
-                // Navigate to result view
-                navigationPath.removeLast() // Remove processing view
-                navigationPath.append(ResultDestination(
-                    scanId: scan.id,
-                    image: image,
-                    extractedData: extractedData,
-                    discogsMatches: discogsMatches,
-                    discogsError: discogsError
-                ))
+                navigationPath.removeLast()
+                navigationPath.append(
+                    ResultDestination(
+                        scanId: nil,
+                        image: image,
+                        extractedData: extractedData,
+                        discogsMatches: discogsMatches,
+                        discogsError: discogsError,
+                        source: .scanUtility
+                    )
+                )
                 isProcessing = false
             }
         } catch {
@@ -411,66 +290,21 @@ struct HistoryView: View {
             }
         }
     }
-    
-    private func openScan(_ scan: Scan) {
-        guard let image = persistenceService.loadImage(from: scan.imagePath) else {
-            alertMessage = "Failed to load image for this scan"
-            showAlert = true
-            return
-        }
-        
-        // If a match was previously selected, navigate directly to DetailView
-        if let selectedIndex = scan.selectedMatchIndex,
-           selectedIndex >= 0,
-           selectedIndex < scan.discogsMatches.count {
-            let selectedMatch = scan.discogsMatches[selectedIndex]
-            navigationPath.append(DetailDestination(match: selectedMatch, scanId: scan.id))
-        } else {
-            // Otherwise, navigate to ResultView (match selection)
-            let destination = ResultDestination(
-                scanId: scan.id,
-                image: image,
-                extractedData: scan.extractedData ?? ExtractedData(
-                    artist: nil,
-                    album: nil,
-                    label: nil,
-                    catalogNumber: nil,
-                    year: nil,
-                    tracks: nil,
-                    rawText: "",
-                    confidence: 0.0
-                ),
-                discogsMatches: scan.discogsMatches,
-                discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
-            )
-            navigationPath.append(destination)
-        }
-    }
-    
-    private func deleteScans(at offsets: IndexSet) {
-        do {
-            for index in offsets {
-                let scan = scans[index]
-                try persistenceService.deleteScan(scan, from: modelContext)
-            }
-        } catch {
-            alertMessage = "Failed to delete scan: \(error.localizedDescription)"
-            showAlert = true
-        }
-    }
 }
 
-// MARK: - Supporting Types
+private enum RootTab: Hashable {
+    case collection
+    case wantlist
+}
 
-// Navigation destinations
 struct ProcessingDestination: Hashable {
     let id = UUID()
     let image: UIImage
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     static func == (lhs: ProcessingDestination, rhs: ProcessingDestination) -> Bool {
         lhs.id == rhs.id
     }
@@ -478,16 +312,17 @@ struct ProcessingDestination: Hashable {
 
 struct ResultDestination: Hashable {
     let id = UUID()
-    let scanId: UUID
+    let scanId: UUID?
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
     let discogsError: String?
-    
+    let source: DetailNavigationSource
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     static func == (lhs: ResultDestination, rhs: ResultDestination) -> Bool {
         lhs.id == rhs.id
     }
@@ -497,14 +332,20 @@ struct DetailDestination: Hashable {
     let id = UUID()
     let match: DiscogsMatch
     let scanId: UUID?
-    
+    let source: DetailNavigationSource
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
-    
+
     static func == (lhs: DetailDestination, rhs: DetailDestination) -> Bool {
         lhs.id == rhs.id
     }
+}
+
+enum DetailNavigationSource: Hashable {
+    case scanUtility
+    case library
 }
 
 #Preview {
