@@ -552,14 +552,7 @@ final class DiscogsService {
             masterId: details.masterId,
             uri: details.uri,
             resourceUrl: details.resourceUrl,
-            videos: details.videos?.map { video in
-                DiscogsMatch.Video(
-                    uri: video.uri,
-                    title: video.title,
-                    description: video.description,
-                    duration: video.duration
-                )
-            } ?? []
+            videos: mapUniqueVideos(from: details.videos)
         )
     }
     
@@ -619,6 +612,80 @@ final class DiscogsService {
         }
         
         throw DiscogsError.retryLimitExceeded
+    }
+
+    private func mapUniqueVideos(from videos: [ReleaseResponse.Video]?) -> [DiscogsMatch.Video] {
+        guard let videos else { return [] }
+
+        var uniqueVideos: [DiscogsMatch.Video] = []
+        var seenKeys = Set<String>()
+
+        for video in videos {
+            let normalizedURI = normalizedVideoURI(video.uri)
+            let normalizedTitle = video.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let dedupeKey: String
+            if let youtubeID = youtubeVideoID(from: normalizedURI) {
+                dedupeKey = "youtube:\(youtubeID)"
+            } else if !normalizedURI.isEmpty {
+                dedupeKey = "uri:\(normalizedURI)"
+            } else {
+                dedupeKey = "title:\(normalizedTitle)|duration:\(video.duration ?? -1)"
+            }
+
+            guard !seenKeys.contains(dedupeKey) else { continue }
+            seenKeys.insert(dedupeKey)
+
+            uniqueVideos.append(
+                DiscogsMatch.Video(
+                    uri: video.uri,
+                    title: video.title,
+                    description: video.description,
+                    duration: video.duration
+                )
+            )
+        }
+
+        return uniqueVideos
+    }
+
+    private func normalizedVideoURI(_ uri: String) -> String {
+        uri.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func youtubeVideoID(from uri: String) -> String? {
+        let trimmedURI = uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let components = URLComponents(string: trimmedURI) else { return nil }
+        guard let host = components.host?.lowercased() else { return nil }
+
+        if host == "youtu.be" || host.hasSuffix(".youtu.be") {
+            let id = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return id.isEmpty ? nil : id
+        }
+
+        let isYouTubeHost = host == "youtube.com"
+            || host == "www.youtube.com"
+            || host == "m.youtube.com"
+            || host == "music.youtube.com"
+
+        guard isYouTubeHost else { return nil }
+
+        let path = components.path
+        let lowercasedPath = path.lowercased()
+
+        if lowercasedPath == "/watch" {
+            let id = components.queryItems?.first(where: { $0.name.lowercased() == "v" })?.value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (id?.isEmpty == false) ? id : nil
+        }
+
+        for prefix in ["/embed/", "/shorts/", "/live/", "/v/"] {
+            if lowercasedPath.hasPrefix(prefix) {
+                let id = String(path.dropFirst(prefix.count)).split(separator: "/").first.map(String.init)
+                return (id?.isEmpty == false) ? id : nil
+            }
+        }
+
+        return nil
     }
     
     /// Perform a single search attempt
@@ -986,14 +1053,7 @@ extension DiscogsService {
                     masterId: details.masterId,
                     uri: details.uri,
                     resourceUrl: details.resourceUrl,
-                    videos: details.videos?.map { video in
-                        DiscogsMatch.Video(
-                            uri: video.uri,
-                            title: video.title,
-                            description: video.description,
-                            duration: video.duration
-                        )
-                    } ?? []
+                    videos: mapUniqueVideos(from: details.videos)
                 )
             } catch {
                 // If fetching details fails, keep the basic match

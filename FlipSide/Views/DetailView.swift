@@ -39,6 +39,76 @@ struct DetailView: View {
     private var displayMatch: DiscogsMatch {
         completeMatch ?? match
     }
+
+    // Defensive dedupe for cached releases that may already include duplicate entries.
+    private var displayVideos: [DiscogsMatch.Video] {
+        var uniqueVideos: [DiscogsMatch.Video] = []
+        var seenKeys = Set<String>()
+
+        for video in displayMatch.videos {
+            let normalizedURI = normalizedVideoURI(video.uri)
+            let normalizedTitle = video.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let dedupeKey: String
+            if let youtubeID = youtubeVideoID(from: normalizedURI) {
+                dedupeKey = "youtube:\(youtubeID)"
+            } else if !normalizedURI.isEmpty {
+                dedupeKey = "uri:\(normalizedURI)"
+            } else {
+                dedupeKey = "title:\(normalizedTitle)|duration:\(video.duration ?? -1)"
+            }
+
+            guard !seenKeys.contains(dedupeKey) else { continue }
+            seenKeys.insert(dedupeKey)
+            uniqueVideos.append(video)
+        }
+
+        return uniqueVideos
+    }
+
+    private func normalizedVideoURI(_ uri: String) -> String {
+        uri.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func youtubeVideoID(from uri: String) -> String? {
+        let trimmedURI = uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let components = URLComponents(string: trimmedURI) else { return nil }
+        guard let host = components.host?.lowercased() else { return nil }
+
+        if host == "youtu.be" || host.hasSuffix(".youtu.be") {
+            let id = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return id.isEmpty ? nil : id
+        }
+
+        let isYouTubeHost = host == "youtube.com"
+            || host == "www.youtube.com"
+            || host == "m.youtube.com"
+            || host == "music.youtube.com"
+
+        guard isYouTubeHost else { return nil }
+
+        let path = components.path
+        let lowercasedPath = path.lowercased()
+
+        if lowercasedPath == "/watch" {
+            let id = components.queryItems?.first(where: { $0.name.lowercased() == "v" })?.value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (id?.isEmpty == false) ? id : nil
+        }
+
+        for prefix in ["/embed/", "/shorts/", "/live/", "/v/"] {
+            if lowercasedPath.hasPrefix(prefix) {
+                let id = String(path.dropFirst(prefix.count)).split(separator: "/").first.map(String.init)
+                return (id?.isEmpty == false) ? id : nil
+            }
+        }
+
+        return nil
+    }
+
+    private func videoThumbnailURL(for uri: String) -> URL? {
+        guard let youtubeID = youtubeVideoID(from: uri) else { return nil }
+        return URL(string: "https://img.youtube.com/vi/\(youtubeID)/hqdefault.jpg")
+    }
     
     var body: some View {
         ScrollView {
@@ -101,7 +171,7 @@ struct DetailView: View {
                 }
                 
                 // Videos
-                if !displayMatch.videos.isEmpty {
+                if !displayVideos.isEmpty {
                     videosSection
                 }
                 
@@ -737,20 +807,55 @@ struct DetailView: View {
     
     private var videosSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Videos")
+            Text("Videos (\(displayVideos.count))")
                 .font(.headline)
             
             VStack(spacing: 12) {
-                ForEach(Array(displayMatch.videos.enumerated()), id: \.offset) { _, video in
+                ForEach(Array(displayVideos.enumerated()), id: \.offset) { _, video in
                     Button {
                         if let url = URL(string: video.uri) {
                             openURL(url)
                         }
                     } label: {
                         HStack {
-                            Image(systemName: "play.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(.red)
+                            Group {
+                                if let thumbnailURL = videoThumbnailURL(for: video.uri) {
+                                    AsyncImage(url: thumbnailURL) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ZStack {
+                                                Color(.tertiarySystemFill)
+                                                Image(systemName: "play.rectangle.fill")
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFill()
+                                        case .failure:
+                                            ZStack {
+                                                Color(.tertiarySystemFill)
+                                                Image(systemName: "play.rectangle.fill")
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        @unknown default:
+                                            ZStack {
+                                                Color(.tertiarySystemFill)
+                                                Image(systemName: "play.rectangle.fill")
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    ZStack {
+                                        Color(.tertiarySystemFill)
+                                        Image(systemName: "play.rectangle.fill")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .frame(width: 84, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(video.title)
