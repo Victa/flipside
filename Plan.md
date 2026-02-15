@@ -304,7 +304,7 @@ struct SocialContext: Codable {
 **Objective:** Restructure UX to show Discogs matches in a horizontal carousel, then navigate to a dedicated Detail View for the selected release.
 
 - [x] 23a. Create DetailView showing selected Discogs release (artwork, metadata, track listing, pricing, "View on Discogs" button)
-- [ ] 23b. Extract DiscogsMatchCard into separate component file (Views/Components/)
+- [x] 23b. Extract DiscogsMatchCard into separate component file (Views/Components/)
 - [ ] 23c. Create horizontal DiscogsMatchCarousel component wrapping match cards
 - [ ] 23d. Transform ResultView to match selection view with carousel
 - [ ] 23e. Update navigation flow: add DetailDestination, wire carousel → DetailView transition
