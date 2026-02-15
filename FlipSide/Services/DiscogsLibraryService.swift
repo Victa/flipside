@@ -57,8 +57,7 @@ final class DiscogsLibraryService {
 
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         let endpoint = "/users/\(encoded)/collection/folders/0/releases"
-        let items = try await fetchPaginatedCollectionItems(endpoint: endpoint)
-        return await enrichItemsWithReleaseMetadata(items)
+        return try await fetchPaginatedCollectionItems(endpoint: endpoint)
     }
 
     func fetchWantlist(username: String) async throws -> [LibraryRemoteItem] {
@@ -68,8 +67,7 @@ final class DiscogsLibraryService {
 
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         let endpoint = "/users/\(encoded)/wants"
-        let items = try await fetchPaginatedWantlistItems(endpoint: endpoint)
-        return await enrichItemsWithReleaseMetadata(items)
+        return try await fetchPaginatedWantlistItems(endpoint: endpoint)
     }
 
     private func fetchPaginatedCollectionItems(endpoint: String) async throws -> [LibraryRemoteItem] {
@@ -127,9 +125,8 @@ final class DiscogsLibraryService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
 
         let data: Data
-        let response: URLResponse
         do {
-            (data, response) = try await performRequestWithRetry(request)
+            (data, _) = try await performRequestWithRetry(request)
         } catch let error as LibraryServiceError {
             throw error
         } catch {
@@ -301,11 +298,6 @@ private struct BasicInformation: Decodable {
     }
 }
 
-private struct ReleaseMetadataResponse: Decodable {
-    let country: String?
-    let formats: [BasicInformation.Format]?
-}
-
 extension DiscogsLibraryService {
     static let dateFormatterWithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -342,66 +334,6 @@ extension DiscogsLibraryService {
         }
 
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
-    }
-
-    private func enrichItemsWithReleaseMetadata(_ items: [LibraryRemoteItem]) async -> [LibraryRemoteItem] {
-        var enriched = items
-
-        for index in enriched.indices {
-            let needsCountry = (enriched[index].country?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            let needsFormat = (enriched[index].formatSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            guard needsCountry || needsFormat else {
-                continue
-            }
-
-            guard let metadata = try? await fetchReleaseMetadata(releaseId: enriched[index].releaseId) else {
-                continue
-            }
-
-            let resolvedCountry = needsCountry ? metadata.country : enriched[index].country
-            let resolvedFormat = needsFormat
-                ? formatSummary(from: metadata.formats) ?? enriched[index].formatSummary
-                : enriched[index].formatSummary
-
-            enriched[index] = LibraryRemoteItem(
-                releaseId: enriched[index].releaseId,
-                title: enriched[index].title,
-                artist: enriched[index].artist,
-                imageURLString: enriched[index].imageURLString,
-                year: enriched[index].year,
-                country: resolvedCountry,
-                formatSummary: resolvedFormat,
-                label: enriched[index].label,
-                catalogNumber: enriched[index].catalogNumber,
-                discogsListItemID: enriched[index].discogsListItemID,
-                position: enriched[index].position,
-                dateAdded: enriched[index].dateAdded
-            )
-
-            // Discogs applies stricter limits to release endpoints. Keep enrichment gentle.
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
-
-        return enriched
-    }
-
-    private func fetchReleaseMetadata(releaseId: Int) async throws -> ReleaseMetadataResponse {
-        guard DiscogsAuthService.shared.isConnected else {
-            throw LibraryServiceError.notConnected
-        }
-
-        guard let url = URL(string: "\(baseURL)/releases/\(releaseId)") else {
-            throw LibraryServiceError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        try DiscogsAuthService.shared.authorizeRequest(&request)
-
-        let (data, _) = try await performRequestWithRetry(request)
-        let decoder = JSONDecoder()
-        return try decoder.decode(ReleaseMetadataResponse.self, from: data)
     }
 
     private func performRequestWithRetry(_ request: URLRequest) async throws -> (Data, URLResponse) {
