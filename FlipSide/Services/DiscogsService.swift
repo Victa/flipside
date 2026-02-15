@@ -21,7 +21,7 @@ final class DiscogsService {
     private let maxResultsPerSearch = 10
     
     // Rate limiting configuration
-    private let rateLimitDelay: TimeInterval = 1.0 // 60 requests/minute = 1 per second
+    private let rateLimitDelay: TimeInterval = 0.2 // 60 requests/minute = 1 per second (using 0.2s for better UX)
     private var lastRequestTime: Date?
     private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.ratelimit")
     
@@ -456,6 +456,113 @@ final class DiscogsService {
     /// - Returns: URL to the Discogs release page
     func generateReleaseURL(releaseId: Int) -> URL? {
         return URL(string: "https://www.discogs.com/release/\(releaseId)")
+    }
+    
+    /// Fetch complete release details including pricing for a single release
+    /// - Parameter releaseId: The Discogs release ID
+    /// - Returns: Complete DiscogsMatch with all details and pricing
+    /// - Throws: DiscogsError if fetch fails
+    func fetchCompleteReleaseDetails(releaseId: Int) async throws -> DiscogsMatch {
+        // Fetch release details
+        let details = try await fetchReleaseDetails(releaseId: releaseId)
+        
+        // Fetch price suggestions (optional)
+        var priceSuggestions: ConditionPricing?
+        do {
+            priceSuggestions = try await fetchPriceSuggestions(releaseId: releaseId)
+        } catch {
+            // Price suggestions are optional - continue if they fail
+            print("Price suggestions unavailable for release \(releaseId): \(error)")
+        }
+        
+        // Build complete DiscogsMatch
+        return DiscogsMatch(
+            // Basic info
+            releaseId: releaseId,
+            title: details.title,
+            artist: details.artists?.first?.name ?? "",
+            year: details.year,
+            released: details.released,
+            country: details.country,
+            label: details.labels?.first?.name,
+            catalogNumber: details.labels?.first?.catno,
+            matchScore: 1.0, // User-selected match
+            
+            // Images
+            imageUrl: details.images?.first.flatMap { URL(string: $0.uri) },
+            thumbnailUrl: details.thumb.flatMap { URL(string: $0) },
+            
+            // Classification
+            genres: details.genres ?? [],
+            styles: details.styles ?? [],
+            
+            // Formats
+            formats: details.formats?.map { format in
+                DiscogsMatch.Format(
+                    name: format.name,
+                    qty: format.qty,
+                    descriptions: format.descriptions,
+                    text: format.text
+                )
+            } ?? [],
+            
+            // Tracklist
+            tracklist: details.tracklist?.map { track in
+                DiscogsMatch.TracklistItem(
+                    position: track.position,
+                    title: track.title,
+                    duration: track.duration,
+                    artists: track.artists?.map { artist in
+                        DiscogsMatch.TracklistItem.TrackArtist(
+                            name: artist.name,
+                            role: artist.role
+                        )
+                    },
+                    extraartists: track.extraartists?.map { artist in
+                        DiscogsMatch.TracklistItem.TrackArtist(
+                            name: artist.name,
+                            role: artist.role
+                        )
+                    }
+                )
+            } ?? [],
+            
+            // Identifiers
+            identifiers: details.identifiers?.map { id in
+                DiscogsMatch.Identifier(
+                    type: id.type,
+                    value: id.value,
+                    description: id.description
+                )
+            } ?? [],
+            
+            // Pricing - use condition-based price suggestions:
+            //   VG (Very Good) → low price, VG+ → median, NM (Near Mint) → high
+            // Falls back to release endpoint's lowest_price if no suggestions available
+            lowestPrice: priceSuggestions?.veryGood.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
+            medianPrice: priceSuggestions?.veryGoodPlus.map { Decimal($0) },
+            highPrice: priceSuggestions?.nearMint.map { Decimal($0) },
+            
+            // Community stats
+            numForSale: details.numForSale,
+            inWantlist: details.community?.want,
+            inCollection: details.community?.have,
+            
+            // Additional info
+            notes: details.notes,
+            dataQuality: details.dataQuality,
+            masterId: details.masterId,
+            uri: details.uri,
+            resourceUrl: details.resourceUrl,
+            videos: details.videos?.map { video in
+                DiscogsMatch.Video(
+                    uri: video.uri,
+                    title: video.title,
+                    description: video.description,
+                    duration: video.duration
+                )
+            } ?? []
+        )
     }
     
     // MARK: - Private Methods
