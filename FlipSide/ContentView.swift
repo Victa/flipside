@@ -99,7 +99,18 @@ struct HistoryView: View {
                     extractedData: destination.extractedData,
                     discogsMatches: destination.discogsMatches,
                     discogsError: destination.discogsError,
-                    onMatchSelected: { match in
+                    onMatchSelected: { match, index in
+                        // Find and update the scan's selectedMatchIndex
+                        let scanId = destination.scanId  // Capture value for Predicate macro
+                        let fetchDescriptor = FetchDescriptor<Scan>(
+                            predicate: #Predicate { $0.id == scanId }
+                        )
+                        if let scan = try? modelContext.fetch(fetchDescriptor).first {
+                            scan.selectedMatchIndex = index
+                            try? modelContext.save()
+                        }
+                        
+                        // Navigate to DetailView
                         navigationPath.append(DetailDestination(match: match))
                     }
                 )
@@ -332,6 +343,7 @@ struct HistoryView: View {
                 // Navigate to result view
                 navigationPath.removeLast() // Remove processing view
                 navigationPath.append(ResultDestination(
+                    scanId: scan.id,
                     image: image,
                     extractedData: extractedData,
                     discogsMatches: discogsMatches,
@@ -355,23 +367,32 @@ struct HistoryView: View {
             return
         }
         
-        // Navigate to ResultView with the scan's data
-        let destination = ResultDestination(
-            image: image,
-            extractedData: scan.extractedData ?? ExtractedData(
-                artist: nil,
-                album: nil,
-                label: nil,
-                catalogNumber: nil,
-                year: nil,
-                tracks: nil,
-                rawText: "",
-                confidence: 0.0
-            ),
-            discogsMatches: scan.discogsMatches,
-            discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
-        )
-        navigationPath.append(destination)
+        // If a match was previously selected, navigate directly to DetailView
+        if let selectedIndex = scan.selectedMatchIndex,
+           selectedIndex >= 0,
+           selectedIndex < scan.discogsMatches.count {
+            let selectedMatch = scan.discogsMatches[selectedIndex]
+            navigationPath.append(DetailDestination(match: selectedMatch))
+        } else {
+            // Otherwise, navigate to ResultView (match selection)
+            let destination = ResultDestination(
+                scanId: scan.id,
+                image: image,
+                extractedData: scan.extractedData ?? ExtractedData(
+                    artist: nil,
+                    album: nil,
+                    label: nil,
+                    catalogNumber: nil,
+                    year: nil,
+                    tracks: nil,
+                    rawText: "",
+                    confidence: 0.0
+                ),
+                discogsMatches: scan.discogsMatches,
+                discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
+            )
+            navigationPath.append(destination)
+        }
     }
     
     private func deleteScans(at offsets: IndexSet) {
@@ -405,6 +426,7 @@ struct ProcessingDestination: Hashable {
 
 struct ResultDestination: Hashable {
     let id = UUID()
+    let scanId: UUID
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]

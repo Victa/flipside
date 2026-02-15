@@ -12,7 +12,7 @@ struct ResultView: View {
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
     let discogsError: String?
-    let onMatchSelected: (DiscogsMatch) -> Void
+    let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
     
@@ -88,7 +88,7 @@ struct ResultView: View {
                     DiscogsMatchCarousel(
                         matches: Array(discogsMatches.prefix(5)),
                         onMatchSelected: { match, index in
-                            onMatchSelected(match)
+                            onMatchSelected(match, index)
                         }
                     )
                 }
@@ -216,8 +216,8 @@ struct ResultView: View {
                 )
             ],
             discogsError: nil,
-            onMatchSelected: { match in
-                print("Preview: Selected \(match.title)")
+            onMatchSelected: { match, index in
+                print("Preview: Selected \(match.title) at index \(index)")
             }
         )
     }
