@@ -17,6 +17,7 @@ struct DetailView: View {
     @StateObject private var authService = DiscogsAuthService.shared
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
+    private let libraryCache = SwiftDataLibraryCache.shared
     
     // Async loading state
     @State private var completeMatch: DiscogsMatch?
@@ -1158,6 +1159,8 @@ struct DetailView: View {
     
     private func addToCollection() async {
         guard let username = authService.currentUsername else { return }
+        let action = "add_collection"
+        let mutationStartedAt = Date()
         
         await MainActor.run {
             isAddingToCollection = true
@@ -1169,13 +1172,36 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
-            
+            logDurationMetric(
+                "library_mutation_request_duration_seconds",
+                action: action,
+                startedAt: mutationStartedAt
+            )
+
+            let optimisticStartedAt = Date()
+            let optimisticWantlist = isInWantlist
             await MainActor.run {
+                do {
+                    try libraryCache.upsertLocalEntry(from: displayMatch, listType: .collection, in: modelContext)
+                } catch {
+                    print("Optimistic cache update failed for action=\(action): \(error.localizedDescription)")
+                }
                 isInCollection = true
                 isAddingToCollection = false
-                updateScanCollectionStatus(isInCollection: true, isInWantlist: isInWantlist)
+                updateScanCollectionStatus(isInCollection: true, isInWantlist: optimisticWantlist)
             }
+            logDurationMetric(
+                "library_optimistic_completion_duration_seconds",
+                action: action,
+                startedAt: optimisticStartedAt
+            )
+
+            verifyAndReconcileStatusInBackground(
+                username: username,
+                action: action,
+                optimisticCollection: true,
+                optimisticWantlist: optimisticWantlist
+            )
         } catch {
             await MainActor.run {
                 isAddingToCollection = false
@@ -1186,6 +1212,8 @@ struct DetailView: View {
     
     private func removeFromCollection() async {
         guard let username = authService.currentUsername else { return }
+        let action = "remove_collection"
+        let mutationStartedAt = Date()
         
         await MainActor.run {
             isRemovingFromCollection = true
@@ -1197,13 +1225,40 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
-            
+            logDurationMetric(
+                "library_mutation_request_duration_seconds",
+                action: action,
+                startedAt: mutationStartedAt
+            )
+
+            let optimisticStartedAt = Date()
+            let optimisticWantlist = isInWantlist
             await MainActor.run {
+                do {
+                    try libraryCache.removeOneLocalEntry(
+                        releaseId: displayMatch.releaseId,
+                        listType: .collection,
+                        in: modelContext
+                    )
+                } catch {
+                    print("Optimistic cache update failed for action=\(action): \(error.localizedDescription)")
+                }
                 isInCollection = false
                 isRemovingFromCollection = false
-                updateScanCollectionStatus(isInCollection: false, isInWantlist: isInWantlist)
+                updateScanCollectionStatus(isInCollection: false, isInWantlist: optimisticWantlist)
             }
+            logDurationMetric(
+                "library_optimistic_completion_duration_seconds",
+                action: action,
+                startedAt: optimisticStartedAt
+            )
+
+            verifyAndReconcileStatusInBackground(
+                username: username,
+                action: action,
+                optimisticCollection: false,
+                optimisticWantlist: optimisticWantlist
+            )
         } catch {
             await MainActor.run {
                 isRemovingFromCollection = false
@@ -1214,6 +1269,8 @@ struct DetailView: View {
     
     private func addToWantlist() async {
         guard let username = authService.currentUsername else { return }
+        let action = "add_wantlist"
+        let mutationStartedAt = Date()
         
         await MainActor.run {
             isAddingToWantlist = true
@@ -1225,13 +1282,36 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
-            
+            logDurationMetric(
+                "library_mutation_request_duration_seconds",
+                action: action,
+                startedAt: mutationStartedAt
+            )
+
+            let optimisticStartedAt = Date()
+            let optimisticCollection = isInCollection
             await MainActor.run {
+                do {
+                    try libraryCache.upsertLocalEntry(from: displayMatch, listType: .wantlist, in: modelContext)
+                } catch {
+                    print("Optimistic cache update failed for action=\(action): \(error.localizedDescription)")
+                }
                 isInWantlist = true
                 isAddingToWantlist = false
-                updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: true)
+                updateScanCollectionStatus(isInCollection: optimisticCollection, isInWantlist: true)
             }
+            logDurationMetric(
+                "library_optimistic_completion_duration_seconds",
+                action: action,
+                startedAt: optimisticStartedAt
+            )
+
+            verifyAndReconcileStatusInBackground(
+                username: username,
+                action: action,
+                optimisticCollection: optimisticCollection,
+                optimisticWantlist: true
+            )
         } catch {
             await MainActor.run {
                 isAddingToWantlist = false
@@ -1242,6 +1322,8 @@ struct DetailView: View {
     
     private func removeFromWantlist() async {
         guard let username = authService.currentUsername else { return }
+        let action = "remove_wantlist"
+        let mutationStartedAt = Date()
         
         await MainActor.run {
             isRemovingFromWantlist = true
@@ -1253,13 +1335,40 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
-            
+            logDurationMetric(
+                "library_mutation_request_duration_seconds",
+                action: action,
+                startedAt: mutationStartedAt
+            )
+
+            let optimisticStartedAt = Date()
+            let optimisticCollection = isInCollection
             await MainActor.run {
+                do {
+                    try libraryCache.removeAllLocalEntries(
+                        releaseId: displayMatch.releaseId,
+                        listType: .wantlist,
+                        in: modelContext
+                    )
+                } catch {
+                    print("Optimistic cache update failed for action=\(action): \(error.localizedDescription)")
+                }
                 isInWantlist = false
                 isRemovingFromWantlist = false
-                updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: false)
+                updateScanCollectionStatus(isInCollection: optimisticCollection, isInWantlist: false)
             }
+            logDurationMetric(
+                "library_optimistic_completion_duration_seconds",
+                action: action,
+                startedAt: optimisticStartedAt
+            )
+
+            verifyAndReconcileStatusInBackground(
+                username: username,
+                action: action,
+                optimisticCollection: optimisticCollection,
+                optimisticWantlist: false
+            )
         } catch {
             await MainActor.run {
                 isRemovingFromWantlist = false
@@ -1282,8 +1391,112 @@ struct DetailView: View {
         }
     }
 
-    private func refreshLibraryListsFromDiscogs() async {
-        _ = await DiscogsLibraryViewModel.shared.refreshAll(modelContext: modelContext)
+    private func verifyAndReconcileStatusInBackground(
+        username: String,
+        action: String,
+        optimisticCollection: Bool?,
+        optimisticWantlist: Bool?
+    ) {
+        Task {
+            let verifyStartedAt = Date()
+            do {
+                let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                    releaseId: displayMatch.releaseId,
+                    username: username
+                )
+                logDurationMetric(
+                    "library_status_verify_duration_seconds",
+                    action: action,
+                    startedAt: verifyStartedAt
+                )
+
+                let mismatchCount = verifiedMismatchCount(
+                    optimisticCollection: optimisticCollection,
+                    optimisticWantlist: optimisticWantlist,
+                    verifiedCollection: status.isInCollection,
+                    verifiedWantlist: status.isInWantlist
+                )
+                print("metric library_status_verify_mismatch_count=\(mismatchCount) action=\(action)")
+
+                try await MainActor.run {
+                    isInCollection = status.isInCollection
+                    isInWantlist = status.isInWantlist
+                    updateScanCollectionStatus(
+                        isInCollection: status.isInCollection,
+                        isInWantlist: status.isInWantlist
+                    )
+                    try reconcileLocalLibraryCache(
+                        isInCollection: status.isInCollection,
+                        isInWantlist: status.isInWantlist
+                    )
+                }
+            } catch {
+                logDurationMetric(
+                    "library_status_verify_duration_seconds",
+                    action: action,
+                    startedAt: verifyStartedAt
+                )
+                print("Collection status verification failed for action=\(action): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func reconcileLocalLibraryCache(
+        isInCollection: Bool,
+        isInWantlist: Bool
+    ) throws {
+        if isInCollection {
+            let hasCollectionEntry = try libraryCache.containsLocalEntry(
+                releaseId: displayMatch.releaseId,
+                listType: .collection,
+                in: modelContext
+            )
+            if !hasCollectionEntry {
+                try libraryCache.upsertLocalEntry(from: displayMatch, listType: .collection, in: modelContext)
+            }
+        } else {
+            try libraryCache.removeAllLocalEntries(
+                releaseId: displayMatch.releaseId,
+                listType: .collection,
+                in: modelContext
+            )
+        }
+
+        if isInWantlist {
+            try libraryCache.removeAllLocalEntries(
+                releaseId: displayMatch.releaseId,
+                listType: .wantlist,
+                in: modelContext
+            )
+            try libraryCache.upsertLocalEntry(from: displayMatch, listType: .wantlist, in: modelContext)
+        } else {
+            try libraryCache.removeAllLocalEntries(
+                releaseId: displayMatch.releaseId,
+                listType: .wantlist,
+                in: modelContext
+            )
+        }
+    }
+
+    private func verifiedMismatchCount(
+        optimisticCollection: Bool?,
+        optimisticWantlist: Bool?,
+        verifiedCollection: Bool,
+        verifiedWantlist: Bool
+    ) -> Int {
+        var mismatches = 0
+        if let optimisticCollection, optimisticCollection != verifiedCollection {
+            mismatches += 1
+        }
+        if let optimisticWantlist, optimisticWantlist != verifiedWantlist {
+            mismatches += 1
+        }
+        return mismatches
+    }
+
+    private func logDurationMetric(_ metricName: String, action: String, startedAt: Date) {
+        let duration = Date().timeIntervalSince(startedAt)
+        print("metric \(metricName)=\(String(format: "%.2f", duration))s action=\(action)")
     }
     
     // MARK: - Helper Methods
