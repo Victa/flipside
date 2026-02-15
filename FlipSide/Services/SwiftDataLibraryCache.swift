@@ -4,7 +4,13 @@ import SwiftData
 final class SwiftDataLibraryCache {
     static let shared = SwiftDataLibraryCache()
 
-    private var incrementalSeenKeys: [String: Set<String>] = [:]
+    private struct IncrementalSessionState {
+        var seenKeys: Set<String>
+        var existingByKey: [String: LibraryEntry]
+        var pendingPageChanges: Int
+    }
+
+    private var incrementalSessions: [String: IncrementalSessionState] = [:]
     private let incrementalQueue = DispatchQueue(label: "com.flipside.librarycache.incremental")
 
     private init() {}
@@ -87,10 +93,24 @@ final class SwiftDataLibraryCache {
         try modelContext.save()
     }
 
-    func beginIncrementalSync(listType: LibraryListType, syncId: UUID, in _: ModelContext) {
+    func beginIncrementalSync(listType: LibraryListType, syncId: UUID, in modelContext: ModelContext) {
         let key = sessionKey(listType: listType, syncId: syncId)
+        let existing = (try? loadEntries(listType: listType, in: modelContext)) ?? []
+        var existingByKey: [String: LibraryEntry] = [:]
+        existing.forEach { entry in
+            existingByKey[entryKey(
+                releaseId: entry.releaseId,
+                listType: listType,
+                discogsListItemID: entry.discogsListItemID
+            )] = entry
+        }
+
         incrementalQueue.sync {
-            incrementalSeenKeys[key] = Set<String>()
+            incrementalSessions[key] = IncrementalSessionState(
+                seenKeys: Set<String>(),
+                existingByKey: existingByKey,
+                pendingPageChanges: 0
+            )
         }
     }
 
@@ -105,19 +125,31 @@ final class SwiftDataLibraryCache {
             return
         }
 
-        let existing = try loadEntries(listType: listType, in: modelContext)
-        var existingByKey: [String: LibraryEntry] = [:]
-        existing.forEach { entry in
-            existingByKey[entryKey(releaseId: entry.releaseId, listType: listType, discogsListItemID: entry.discogsListItemID)] = entry
+        let key = sessionKey(listType: listType, syncId: syncId)
+        var sessionState: IncrementalSessionState? = incrementalQueue.sync {
+            incrementalSessions[key]
         }
+
+        if sessionState == nil {
+            beginIncrementalSync(listType: listType, syncId: syncId, in: modelContext)
+            sessionState = incrementalQueue.sync {
+                incrementalSessions[key]
+            }
+        }
+
+        guard var sessionState else { return }
 
         var pageKeys = Set<String>()
 
         for item in items {
-            let key = entryKey(releaseId: item.releaseId, listType: listType, discogsListItemID: item.discogsListItemID)
-            pageKeys.insert(key)
+            let itemKey = entryKey(
+                releaseId: item.releaseId,
+                listType: listType,
+                discogsListItemID: item.discogsListItemID
+            )
+            pageKeys.insert(itemKey)
 
-            if let entry = existingByKey[key] {
+            if let entry = sessionState.existingByKey[itemKey] {
                 entry.title = item.title
                 entry.artist = item.artist
                 entry.imageURLString = item.imageURLString
@@ -148,17 +180,25 @@ final class SwiftDataLibraryCache {
                     updatedAt: updatedAt
                 )
                 modelContext.insert(entry)
+                sessionState.existingByKey[itemKey] = entry
             }
         }
 
-        let key = sessionKey(listType: listType, syncId: syncId)
-        incrementalQueue.sync {
-            var seen = incrementalSeenKeys[key] ?? Set<String>()
-            seen.formUnion(pageKeys)
-            incrementalSeenKeys[key] = seen
+        sessionState.seenKeys.formUnion(pageKeys)
+        sessionState.pendingPageChanges += 1
+
+        let shouldSave = sessionState.pendingPageChanges >= 2
+        if shouldSave {
+            sessionState.pendingPageChanges = 0
         }
 
-        try modelContext.save()
+        incrementalQueue.sync {
+            incrementalSessions[key] = sessionState
+        }
+
+        if shouldSave {
+            try modelContext.save()
+        }
     }
 
     func finalizeIncrementalSync(
@@ -168,14 +208,12 @@ final class SwiftDataLibraryCache {
         in modelContext: ModelContext
     ) throws {
         let key = sessionKey(listType: listType, syncId: syncId)
-        let seenKeys = incrementalQueue.sync {
-            incrementalSeenKeys[key] ?? Set<String>()
+        guard let sessionState = incrementalQueue.sync(execute: { incrementalSessions[key] }) else {
+            return
         }
 
-        let existing = try loadEntries(listType: listType, in: modelContext)
-        for entry in existing {
-            let entryKey = entryKey(releaseId: entry.releaseId, listType: listType, discogsListItemID: entry.discogsListItemID)
-            if !seenKeys.contains(entryKey) {
+        for (key, entry) in sessionState.existingByKey {
+            if !sessionState.seenKeys.contains(key) {
                 modelContext.delete(entry)
             }
         }
@@ -184,14 +222,14 @@ final class SwiftDataLibraryCache {
         try modelContext.save()
 
         _ = incrementalQueue.sync {
-            incrementalSeenKeys.removeValue(forKey: key)
+            incrementalSessions.removeValue(forKey: key)
         }
     }
 
     func failIncrementalSync(listType: LibraryListType, syncId: UUID, in _: ModelContext) {
         let key = sessionKey(listType: listType, syncId: syncId)
         _ = incrementalQueue.sync {
-            incrementalSeenKeys.removeValue(forKey: key)
+            incrementalSessions.removeValue(forKey: key)
         }
     }
 

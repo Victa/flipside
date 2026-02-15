@@ -247,6 +247,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
         modelContext: ModelContext,
         onInitialGateReady: @escaping @MainActor () -> Void
     ) async -> RefreshResult {
+        let fullSyncInterval = PerformanceMetrics.begin(.incrementalSyncFull)
+        let firstPageInterval = PerformanceMetrics.begin(.incrementalSyncFirstPage)
         let sessionId = UUID()
         activeSyncSessionId = sessionId
 
@@ -267,6 +269,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
             onInitialGateReady()
             let onboardingDuration = Date().timeIntervalSince(syncStart)
             print("metric time_to_onboarding_complete=\(String(format: "%.2f", onboardingDuration))s")
+            PerformanceMetrics.end(.incrementalSyncFirstPage, firstPageInterval)
+            PerformanceMetrics.gauge("incremental_sync_first_page_seconds", value: onboardingDuration)
         }
 
         print("metric sync_started_at=\(syncStart.timeIntervalSince1970)")
@@ -310,10 +314,15 @@ final class DiscogsLibraryViewModel: ObservableObject {
 
         if !initialGateSent {
             tryEmitInitialGate()
+            if !initialGateSent {
+                PerformanceMetrics.end(.incrementalSyncFirstPage, firstPageInterval)
+            }
         }
 
         let fullDuration = Date().timeIntervalSince(syncStart)
         print("metric time_to_full_sync_complete=\(String(format: "%.2f", fullDuration))s")
+        PerformanceMetrics.end(.incrementalSyncFull, fullSyncInterval)
+        PerformanceMetrics.gauge("incremental_sync_full_seconds", value: fullDuration)
 
         let results = [collection, wantlist]
         let failures = results.compactMap { result -> String? in

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 # FlipSide Build Script
 # Build your iOS app without opening Xcode
@@ -47,6 +47,7 @@ Commands:
     device          Build for iOS Device
     clean           Clean build artifacts
     test            Run tests
+    perf            Run performance budget tests
     archive         Create an archive (for App Store/TestFlight)
     help            Show this help message
 
@@ -66,6 +67,7 @@ Examples:
     ./build.sh device                       # Build for device
     ./build.sh clean                        # Clean build artifacts
     ./build.sh test                         # Run tests
+    ./build.sh perf                         # Run performance budget tests
     ./build.sh archive                      # Create release archive
 
 EOF
@@ -135,6 +137,17 @@ get_simulator_udid() {
     fi
     
     echo "$udid"
+}
+
+# xcodebuild test requires a concrete simulator destination.
+resolve_test_destination() {
+    local destination="$1"
+
+    if [ "$destination" = "generic/platform=iOS Simulator" ]; then
+        echo "platform=iOS Simulator,name=iPhone 17 Pro"
+    else
+        echo "$destination"
+    fi
 }
 
 # Main script logic
@@ -264,17 +277,33 @@ case $COMMAND in
     
     test)
         print_info "Running tests for $PROJECT_NAME..."
+        TEST_DESTINATION=$(resolve_test_destination "$DESTINATION")
         xcodebuild \
             -project "$PROJECT_FILE" \
             -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \
-            -sdk iphonesimulator \
-            -destination "$DESTINATION" \
+            -destination "$TEST_DESTINATION" \
             -derivedDataPath "$DERIVED_DATA_PATH" \
             test \
             $VERBOSE
         
         print_success "Tests completed successfully!"
+        ;;
+
+    perf)
+        print_info "Running performance budget tests for $PROJECT_NAME..."
+        TEST_DESTINATION=$(resolve_test_destination "$DESTINATION")
+        xcodebuild \
+            -project "$PROJECT_FILE" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination "$TEST_DESTINATION" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            test \
+            -only-testing:FlipSideTests \
+            $VERBOSE
+
+        print_success "Performance budget tests completed successfully!"
         ;;
     
     archive)

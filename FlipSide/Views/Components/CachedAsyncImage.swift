@@ -1,20 +1,15 @@
-//
-//  CachedAsyncImage.swift
-//  FlipSide
-//
-//  Cached AsyncImage for offline support
-//
-
 import SwiftUI
+import UIKit
 
-/// AsyncImage wrapper with persistent caching for offline support
+/// Async image wrapper with in-memory + URLCache support and request coalescing.
 struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     let url: URL?
     let content: (Image) -> Content
     let placeholder: () -> Placeholder
-    
+
     @State private var cachedImage: UIImage?
-    
+    @State private var loadTask: Task<Void, Never>?
+
     init(
         url: URL?,
         @ViewBuilder content: @escaping (Image) -> Content,
@@ -24,67 +19,107 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         self.content = content
         self.placeholder = placeholder
     }
-    
+
     var body: some View {
         Group {
-            if let cachedImage = cachedImage {
+            if let cachedImage {
                 content(Image(uiImage: cachedImage))
-            } else if let url = url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        content(image)
-                            .onAppear {
-                                // Cache the downloaded image
-                                cacheImage(from: url)
-                            }
-                    case .empty, .failure:
-                        placeholder()
-                    @unknown default:
-                        placeholder()
-                    }
-                }
             } else {
                 placeholder()
             }
         }
         .onAppear {
-            loadCachedImage()
+            startLoading()
+        }
+        .onChange(of: url) { _, _ in
+            startLoading()
+        }
+        .onDisappear {
+            loadTask?.cancel()
+            loadTask = nil
         }
     }
-    
-    private func loadCachedImage() {
-        guard let url = url else { return }
-        
-        // Check URLCache first
-        let request = URLRequest(url: url)
-        if let cachedResponse = URLCache.shared.cachedResponse(for: request),
-           let image = UIImage(data: cachedResponse.data) {
-            self.cachedImage = image
-        }
-    }
-    
-    private func cacheImage(from url: URL) {
-        Task {
-            do {
-                let (data, response) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    // Store in URLCache
-                    let cachedResponse = CachedURLResponse(response: response, data: data)
-                    URLCache.shared.storeCachedResponse(cachedResponse, for: URLRequest(url: url))
-                    
-                    await MainActor.run {
-                        self.cachedImage = image
-                    }
+
+    private func startLoading() {
+        loadTask?.cancel()
+        cachedImage = nil
+
+        guard let url else { return }
+
+        loadTask = Task {
+            if let immediate = await CachedImageLoader.shared.cachedImage(for: url) {
+                await MainActor.run {
+                    cachedImage = immediate
                 }
-            } catch {
-                print("Failed to cache image: \(error.localizedDescription)")
+                return
+            }
+
+            let loaded = await CachedImageLoader.shared.loadImage(for: url)
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                cachedImage = loaded
             }
         }
     }
 }
 
-// MARK: - Convenience initializer for simple cases
+actor CachedImageLoader {
+    static let shared = CachedImageLoader()
+
+    private let memoryCache = NSCache<NSURL, UIImage>()
+    private var inFlight: [URL: Task<UIImage?, Never>] = [:]
+
+    func cachedImage(for url: URL) -> UIImage? {
+        if let memoryImage = memoryCache.object(forKey: url as NSURL) {
+            return memoryImage
+        }
+
+        let request = URLRequest(url: url)
+        if let cachedResponse = URLCache.shared.cachedResponse(for: request),
+           let image = UIImage(data: cachedResponse.data) {
+            memoryCache.setObject(image, forKey: url as NSURL)
+            return image
+        }
+
+        return nil
+    }
+
+    func loadImage(for url: URL) async -> UIImage? {
+        if let cached = cachedImage(for: url) {
+            return cached
+        }
+
+        if let existing = inFlight[url] {
+            return await existing.value
+        }
+
+        let task = Task<UIImage?, Never> {
+            let request = URLRequest(url: url)
+            do {
+                PerformanceMetrics.incrementCounter("image_network_requests")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let image = UIImage(data: data) else {
+                    return nil
+                }
+
+                memoryCache.setObject(image, forKey: url as NSURL)
+                URLCache.shared.storeCachedResponse(
+                    CachedURLResponse(response: response, data: data),
+                    for: request
+                )
+                return image
+            } catch {
+                return nil
+            }
+        }
+
+        inFlight[url] = task
+        let image = await task.value
+        inFlight[url] = nil
+        return image
+    }
+}
 
 extension CachedAsyncImage where Content == Image, Placeholder == Color {
     init(url: URL?) {

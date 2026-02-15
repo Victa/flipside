@@ -41,3 +41,19 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only
         ENABLE_PREVIEWS: YES
+
+  FlipSideTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - FlipSideTests
+    dependencies:
+      - target: FlipSide
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flipside.FlipSideTests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/FlipSide.app/FlipSide"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"

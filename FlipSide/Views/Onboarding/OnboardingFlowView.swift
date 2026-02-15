@@ -18,6 +18,7 @@ struct OnboardingFlowView: View {
     @State private var syncErrorMessage: String?
     @State private var hasAttemptedInitialSync = false
     @State private var hasTriggeredOnboardingCompletion = false
+    @State private var syncTask: Task<Void, Never>?
 
     private let keychainService = KeychainService.shared
 
@@ -41,8 +42,14 @@ struct OnboardingFlowView: View {
                 authService.refreshPublishedState()
                 step = initialStep()
                 if step == .syncing {
-                    await refreshLibraryAfterOnboarding()
+                    await MainActor.run {
+                        startSyncTask()
+                    }
                 }
+            }
+            .onDisappear {
+                syncTask?.cancel()
+                syncTask = nil
             }
         }
     }
@@ -166,9 +173,7 @@ struct OnboardingFlowView: View {
                     .multilineTextAlignment(.center)
 
                 Button("Retry") {
-                    Task {
-                        await refreshLibraryAfterOnboarding(forceRetry: true)
-                    }
+                    startSyncTask(forceRetry: true)
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -234,18 +239,22 @@ struct OnboardingFlowView: View {
         Task {
             do {
                 try await authService.connect()
+                let shouldStartSync = hasStoredOpenAIKey
 
                 await MainActor.run {
                     isConnectingDiscogs = false
                     onCredentialsChanged()
 
-                    if hasStoredOpenAIKey {
+                    if shouldStartSync {
                         step = .syncing
-                        Task {
-                            await refreshLibraryAfterOnboarding()
-                        }
                     } else {
                         step = .openAI
+                    }
+                }
+
+                if shouldStartSync {
+                    await MainActor.run {
+                        startSyncTask()
                     }
                 }
             } catch {
@@ -276,9 +285,7 @@ struct OnboardingFlowView: View {
                     openAIAPIKey = ""
                     onCredentialsChanged()
                     step = .syncing
-                    Task {
-                        await refreshLibraryAfterOnboarding()
-                    }
+                    startSyncTask()
                 }
             } catch {
                 await MainActor.run {
@@ -309,34 +316,43 @@ struct OnboardingFlowView: View {
         isSyncing = true
         syncErrorMessage = nil
 
-        Task {
-            let result = await libraryViewModel.refreshAllIncremental(modelContext: modelContext) {
-                if !hasTriggeredOnboardingCompletion {
-                    hasTriggeredOnboardingCompletion = true
-                    onCompleted()
-                }
+        let result = await libraryViewModel.refreshAllIncremental(modelContext: modelContext) {
+            if !hasTriggeredOnboardingCompletion {
+                hasTriggeredOnboardingCompletion = true
+                onCompleted()
             }
+        }
 
-            await MainActor.run {
-                isSyncing = false
+        guard !Task.isCancelled else {
+            isSyncing = false
+            return
+        }
 
-                if let failure = result.failureMessage {
-                    let collectionReady = libraryViewModel.collectionState.isInitialPageLoaded
-                    let wantlistReady = libraryViewModel.wantlistState.isInitialPageLoaded
+        isSyncing = false
 
-                    if collectionReady || wantlistReady {
-                        syncErrorMessage = "Partial sync complete. Some data loaded, but background refresh hit an issue: \(failure)"
-                    } else {
-                        syncErrorMessage = "Refresh failed: \(failure)"
-                    }
-                } else {
-                    syncErrorMessage = nil
-                    if !hasTriggeredOnboardingCompletion {
-                        hasTriggeredOnboardingCompletion = true
-                        onCompleted()
-                    }
-                }
+        if let failure = result.failureMessage {
+            let collectionReady = libraryViewModel.collectionState.isInitialPageLoaded
+            let wantlistReady = libraryViewModel.wantlistState.isInitialPageLoaded
+
+            if collectionReady || wantlistReady {
+                syncErrorMessage = "Partial sync complete. Some data loaded, but background refresh hit an issue: \(failure)"
+            } else {
+                syncErrorMessage = "Refresh failed: \(failure)"
             }
+        } else {
+            syncErrorMessage = nil
+            if !hasTriggeredOnboardingCompletion {
+                hasTriggeredOnboardingCompletion = true
+                onCompleted()
+            }
+        }
+    }
+
+    @MainActor
+    private func startSyncTask(forceRetry: Bool = false) {
+        syncTask?.cancel()
+        syncTask = Task {
+            await refreshLibraryAfterOnboarding(forceRetry: forceRetry)
         }
     }
 }

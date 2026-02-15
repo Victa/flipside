@@ -280,6 +280,7 @@ struct AppRootTabView: View {
 
     private func performExtraction(image: UIImage) async {
         isProcessing = true
+        let interval = PerformanceMetrics.begin(.scanToResults)
 
         await MainActor.run {
             currentProcessingStep = .readingImage
@@ -331,12 +332,14 @@ struct AppRootTabView: View {
                 )
                 isProcessing = false
             }
+            PerformanceMetrics.end(.scanToResults, interval)
         } catch {
             await MainActor.run {
                 alertMessage = "Error: \(error.localizedDescription)"
                 showAlert = true
                 isProcessing = false
             }
+            PerformanceMetrics.end(.scanToResults, interval)
         }
     }
 }

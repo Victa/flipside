@@ -31,15 +31,17 @@ class PersistenceService {
     }
     
     /// Load an image from the app's documents directory given a filename
-    func loadImage(from filename: String) -> UIImage? {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = documentsDirectory.appendingPathComponent(filename)
-        
-        guard let imageData = try? Data(contentsOf: fileURL) else {
-            return nil
-        }
-        
-        return UIImage(data: imageData)
+    func loadImage(from filename: String) async -> UIImage? {
+        await Task.detached(priority: .utility) {
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let fileURL = documentsDirectory.appendingPathComponent(filename)
+
+            guard let imageData = try? Data(contentsOf: fileURL) else {
+                return nil
+            }
+
+            return UIImage(data: imageData)
+        }.value
     }
     
     /// Delete an image file from the app's documents directory
