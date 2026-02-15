@@ -443,7 +443,7 @@ final class DiscogsService {
         let details = try await fetchReleaseDetails(releaseId: releaseId)
         
         // Fetch price suggestions (optional)
-        var priceSuggestions: ConditionPricing?
+        var priceSuggestions: [String: DiscogsMatch.ConditionPrice]?
         do {
             priceSuggestions = try await fetchPriceSuggestions(releaseId: releaseId)
         } catch {
@@ -879,7 +879,7 @@ extension DiscogsService {
                 let details = try await fetchReleaseDetails(releaseId: match.releaseId)
                 
                 // Fetch price suggestions by condition grade (VG, VG+, NM, M)
-                var priceSuggestions: ConditionPricing?
+                var priceSuggestions: [String: DiscogsMatch.ConditionPrice]?
                 do {
                     priceSuggestions = try await fetchPriceSuggestions(releaseId: match.releaseId)
                 } catch {
