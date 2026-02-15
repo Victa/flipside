@@ -28,7 +28,7 @@ final class DiscogsService {
     // MARK: - Error Types
     
     enum DiscogsError: LocalizedError {
-        case noPersonalToken
+        case notConnected
         case invalidURL
         case networkError(Error)
         case apiError(statusCode: Int, message: String)
@@ -40,8 +40,8 @@ final class DiscogsService {
         
         var errorDescription: String? {
             switch self {
-            case .noPersonalToken:
-                return "Discogs personal access token not found. Please configure it in Settings."
+            case .notConnected:
+                return "Discogs account not connected. Connect your account in Settings."
             case .invalidURL:
                 return "Invalid API URL constructed."
             case .networkError(let error):
@@ -239,9 +239,8 @@ final class DiscogsService {
     /// - Returns: Array of DiscogsMatch sorted by match score (highest first)
     /// - Throws: DiscogsError if search fails
     func searchReleases(for extractedData: ExtractedData) async throws -> [DiscogsMatch] {
-        // Validate personal token
-        guard let personalToken = KeychainService.shared.discogsPersonalToken else {
-            throw DiscogsError.noPersonalToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw DiscogsError.notConnected
         }
         
         // Build search query from extracted data
@@ -253,15 +252,13 @@ final class DiscogsService {
         
         // Perform search with rate limiting
         var searchResults = try await performSearchWithRetry(
-            query: searchQuery,
-            personalToken: personalToken
+            query: searchQuery
         )
         
         // If no results, try fallback searches with simpler queries
         if searchResults.isEmpty {
             searchResults = try await performFallbackSearches(
-                extractedData: extractedData,
-                personalToken: personalToken
+                extractedData: extractedData
             )
         }
         
@@ -367,8 +364,8 @@ final class DiscogsService {
     /// - Returns: Updated DiscogsMatch with detailed information
     /// - Throws: DiscogsError if fetch fails
     private func fetchReleaseDetails(releaseId: Int) async throws -> ReleaseResponse {
-        guard let personalToken = KeychainService.shared.discogsPersonalToken else {
-            throw DiscogsError.noPersonalToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw DiscogsError.notConnected
         }
         
         // Apply rate limiting
@@ -381,7 +378,7 @@ final class DiscogsService {
         
         // Create request
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(personalToken)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -407,8 +404,8 @@ final class DiscogsService {
     /// - Returns: Dictionary of condition names to DiscogsMatch.ConditionPrice
     /// - Throws: DiscogsError if fetch fails
     private func fetchPriceSuggestions(releaseId: Int) async throws -> [String: DiscogsMatch.ConditionPrice] {
-        guard let personalToken = KeychainService.shared.discogsPersonalToken else {
-            throw DiscogsError.noPersonalToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw DiscogsError.notConnected
         }
         
         // Apply rate limiting
@@ -421,7 +418,7 @@ final class DiscogsService {
         
         // Create request
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(personalToken)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -570,8 +567,7 @@ final class DiscogsService {
     
     /// Perform fallback searches with simpler queries when primary search fails
     private func performFallbackSearches(
-        extractedData: ExtractedData,
-        personalToken: String
+        extractedData: ExtractedData
     ) async throws -> [SearchResponse.SearchResult] {
         // Fallback 1: Artist + First track title (good for singles/EPs)
         if let artist = extractedData.artist, !artist.isEmpty,
@@ -579,7 +575,7 @@ final class DiscogsService {
             let firstTrack = tracks[0].title
             if !firstTrack.isEmpty {
                 let query1 = "\(artist) \(firstTrack)"
-                if let results = try? await performSearchWithRetry(query: query1, personalToken: personalToken),
+                if let results = try? await performSearchWithRetry(query: query1),
                    !results.isEmpty {
                     return results
                 }
@@ -590,7 +586,7 @@ final class DiscogsService {
         if let artist = extractedData.artist, !artist.isEmpty,
            let album = extractedData.album, !album.isEmpty {
             let query2 = "\(artist) \(album)"
-            if let results = try? await performSearchWithRetry(query: query2, personalToken: personalToken),
+            if let results = try? await performSearchWithRetry(query: query2),
                !results.isEmpty {
                 return results
             }
@@ -602,14 +598,12 @@ final class DiscogsService {
     
     /// Perform search with retry logic for rate limiting
     private func performSearchWithRetry(
-        query: String,
-        personalToken: String
+        query: String
     ) async throws -> [SearchResponse.SearchResult] {
         for attempt in 0..<maxRetries {
             do {
                 return try await performSearch(
-                    query: query,
-                    personalToken: personalToken
+                    query: query
                 )
             } catch DiscogsError.rateLimitExceeded {
                 // For rate limits, use exponential backoff
@@ -629,8 +623,7 @@ final class DiscogsService {
     
     /// Perform a single search attempt
     private func performSearch(
-        query: String,
-        personalToken: String
+        query: String
     ) async throws -> [SearchResponse.SearchResult] {
         // Apply rate limiting
         await applyRateLimit()
@@ -650,7 +643,7 @@ final class DiscogsService {
         
         // Create request
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(personalToken)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -862,9 +855,10 @@ final class DiscogsService {
             return
             
         case 401:
+            try? DiscogsAuthService.shared.disconnect()
             throw DiscogsError.apiError(
                 statusCode: 401,
-                message: "Invalid personal access token"
+                message: "OAuth authentication failed. Please reconnect your Discogs account in Settings."
             )
             
         case 429:

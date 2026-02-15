@@ -1,0 +1,7 @@
+// Shared app build settings.
+// Values in DiscogsSecrets.xcconfig override defaults here.
+
+DISCOGS_CONSUMER_KEY =
+DISCOGS_CONSUMER_SECRET =
+
+#include? "DiscogsSecrets.xcconfig"

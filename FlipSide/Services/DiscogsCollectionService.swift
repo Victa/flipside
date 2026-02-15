@@ -24,7 +24,7 @@ final class DiscogsCollectionService {
     // MARK: - Error Types
     
     enum CollectionError: LocalizedError {
-        case noToken
+        case notConnected
         case noUsername
         case invalidURL
         case networkError(Error)
@@ -36,8 +36,8 @@ final class DiscogsCollectionService {
         
         var errorDescription: String? {
             switch self {
-            case .noToken:
-                return "Discogs personal access token not found. Please configure it in Settings."
+            case .notConnected:
+                return "Discogs account not connected. Connect your account in Settings."
             case .noUsername:
                 return "Discogs username not configured. Please add your username in Settings."
             case .invalidURL:
@@ -133,8 +133,8 @@ final class DiscogsCollectionService {
     /// - Returns: Tuple with collection and wantlist status
     /// - Throws: CollectionError if check fails
     func checkCollectionStatus(releaseId: Int, username: String) async throws -> (isInCollection: Bool, isInWantlist: Bool) {
-        guard let token = KeychainService.shared.discogsPersonalToken else {
-            throw CollectionError.noToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw CollectionError.notConnected
         }
         
         guard !username.isEmpty else {
@@ -142,8 +142,8 @@ final class DiscogsCollectionService {
         }
         
         // Check both collection and wantlist concurrently
-        async let collectionCheck = isInCollection(releaseId: releaseId, username: username, token: token)
-        async let wantlistCheck = isInWantlist(releaseId: releaseId, username: username, token: token)
+        async let collectionCheck = isInCollection(releaseId: releaseId, username: username)
+        async let wantlistCheck = isInWantlist(releaseId: releaseId, username: username)
         
         let (inCollection, inWantlist) = try await (collectionCheck, wantlistCheck)
         
@@ -156,8 +156,8 @@ final class DiscogsCollectionService {
     ///   - username: The Discogs username
     /// - Throws: CollectionError if operation fails
     func addToCollection(releaseId: Int, username: String) async throws {
-        guard let token = KeychainService.shared.discogsPersonalToken else {
-            throw CollectionError.noToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw CollectionError.notConnected
         }
         
         guard !username.isEmpty else {
@@ -174,7 +174,7 @@ final class DiscogsCollectionService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -189,8 +189,8 @@ final class DiscogsCollectionService {
     ///   - username: The Discogs username
     /// - Throws: CollectionError if operation fails
     func removeFromCollection(releaseId: Int, username: String) async throws {
-        guard let token = KeychainService.shared.discogsPersonalToken else {
-            throw CollectionError.noToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw CollectionError.notConnected
         }
         
         guard !username.isEmpty else {
@@ -198,7 +198,7 @@ final class DiscogsCollectionService {
         }
         
         // First, get the instance ID
-        guard let instanceId = try await getCollectionInstanceId(releaseId: releaseId, username: username, token: token) else {
+        guard let instanceId = try await getCollectionInstanceId(releaseId: releaseId, username: username) else {
             throw CollectionError.notFound
         }
         
@@ -212,7 +212,7 @@ final class DiscogsCollectionService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -226,8 +226,8 @@ final class DiscogsCollectionService {
     ///   - username: The Discogs username
     /// - Throws: CollectionError if operation fails
     func addToWantlist(releaseId: Int, username: String) async throws {
-        guard let token = KeychainService.shared.discogsPersonalToken else {
-            throw CollectionError.noToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw CollectionError.notConnected
         }
         
         guard !username.isEmpty else {
@@ -243,7 +243,7 @@ final class DiscogsCollectionService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -258,8 +258,8 @@ final class DiscogsCollectionService {
     ///   - username: The Discogs username
     /// - Throws: CollectionError if operation fails
     func removeFromWantlist(releaseId: Int, username: String) async throws {
-        guard let token = KeychainService.shared.discogsPersonalToken else {
-            throw CollectionError.noToken
+        guard DiscogsAuthService.shared.isConnected else {
+            throw CollectionError.notConnected
         }
         
         guard !username.isEmpty else {
@@ -275,7 +275,7 @@ final class DiscogsCollectionService {
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -286,7 +286,7 @@ final class DiscogsCollectionService {
     // MARK: - Private Methods
     
     /// Check if release is in user's collection using per-release endpoint
-    private func isInCollection(releaseId: Int, username: String, token: String) async throws -> Bool {
+    private func isInCollection(releaseId: Int, username: String) async throws -> Bool {
         // Apply rate limiting
         await applyRateLimit()
         
@@ -296,7 +296,7 @@ final class DiscogsCollectionService {
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -323,7 +323,7 @@ final class DiscogsCollectionService {
     }
     
     /// Check if release is in user's wantlist using per-release endpoint
-    private func isInWantlist(releaseId: Int, username: String, token: String) async throws -> Bool {
+    private func isInWantlist(releaseId: Int, username: String) async throws -> Bool {
         // Apply rate limiting
         await applyRateLimit()
         
@@ -333,11 +333,11 @@ final class DiscogsCollectionService {
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await URLSession.shared.data(for: request)
         
         let httpCode = (response as? HTTPURLResponse)?.statusCode ?? -1
         
@@ -353,7 +353,7 @@ final class DiscogsCollectionService {
     }
     
     /// Get the instance ID for a release in the collection (needed for deletion)
-    private func getCollectionInstanceId(releaseId: Int, username: String, token: String) async throws -> Int? {
+    private func getCollectionInstanceId(releaseId: Int, username: String) async throws -> Int? {
         // Apply rate limiting
         await applyRateLimit()
         
@@ -363,7 +363,7 @@ final class DiscogsCollectionService {
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
         
@@ -415,9 +415,10 @@ final class DiscogsCollectionService {
             return
             
         case 401:
+            try? DiscogsAuthService.shared.disconnect()
             throw CollectionError.apiError(
                 statusCode: 401,
-                message: "Invalid personal access token or insufficient permissions"
+                message: "OAuth authentication failed. Please reconnect your Discogs account in Settings."
             )
             
         case 404:

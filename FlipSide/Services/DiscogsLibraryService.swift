@@ -20,8 +20,13 @@ final class DiscogsLibraryService {
 
     private let baseURL = "https://api.discogs.com"
     private let userAgent = "FlipSideApp/1.0"
+    private let rateLimitDelay: TimeInterval = 1.1
+    private let max429Retries = 3
+    private var lastRequestTime: Date?
+    private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.library.ratelimit")
 
     enum LibraryServiceError: LocalizedError {
+        case notConnected
         case missingUsername
         case invalidURL
         case invalidResponse
@@ -29,8 +34,10 @@ final class DiscogsLibraryService {
 
         var errorDescription: String? {
             switch self {
+            case .notConnected:
+                return "Discogs account is not connected. Connect in Settings."
             case .missingUsername:
-                return "Discogs username is required. Add it in Settings."
+                return "Discogs username is unavailable. Reconnect your Discogs account in Settings."
             case .invalidURL:
                 return "Failed to build Discogs API URL."
             case .invalidResponse:
@@ -50,8 +57,7 @@ final class DiscogsLibraryService {
 
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         let endpoint = "/users/\(encoded)/collection/folders/0/releases"
-        let items = try await fetchPaginatedCollectionItems(endpoint: endpoint)
-        return await enrichItemsWithReleaseMetadata(items)
+        return try await fetchPaginatedCollectionItems(endpoint: endpoint)
     }
 
     func fetchWantlist(username: String) async throws -> [LibraryRemoteItem] {
@@ -61,8 +67,7 @@ final class DiscogsLibraryService {
 
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         let endpoint = "/users/\(encoded)/wants"
-        let items = try await fetchPaginatedWantlistItems(endpoint: endpoint)
-        return await enrichItemsWithReleaseMetadata(items)
+        return try await fetchPaginatedWantlistItems(endpoint: endpoint)
     }
 
     private func fetchPaginatedCollectionItems(endpoint: String) async throws -> [LibraryRemoteItem] {
@@ -100,6 +105,10 @@ final class DiscogsLibraryService {
     }
 
     private func request<T: Decodable>(endpoint: String, page: Int) async throws -> T {
+        guard DiscogsAuthService.shared.isConnected else {
+            throw LibraryServiceError.notConnected
+        }
+
         var components = URLComponents(string: "\(baseURL)\(endpoint)")
         components?.queryItems = [
             URLQueryItem(name: "page", value: String(page)),
@@ -113,21 +122,15 @@ final class DiscogsLibraryService {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        try DiscogsAuthService.shared.authorizeRequest(&request)
 
-        if let token = KeychainService.shared.discogsPersonalToken,
-           !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let data: Data
+        do {
+            (data, _) = try await performRequestWithRetry(request)
+        } catch let error as LibraryServiceError {
+            throw error
+        } catch {
             throw LibraryServiceError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
         }
 
         do {
@@ -295,11 +298,6 @@ private struct BasicInformation: Decodable {
     }
 }
 
-private struct ReleaseMetadataResponse: Decodable {
-    let country: String?
-    let formats: [BasicInformation.Format]?
-}
-
 extension DiscogsLibraryService {
     static let dateFormatterWithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -338,82 +336,56 @@ extension DiscogsLibraryService {
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
-    private func enrichItemsWithReleaseMetadata(_ items: [LibraryRemoteItem]) async -> [LibraryRemoteItem] {
-        var enriched = items
+    private func performRequestWithRetry(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        var attempt = 0
+        var backoff: UInt64 = 1_000_000_000
 
-        for index in enriched.indices {
-            let needsCountry = (enriched[index].country?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            let needsFormat = (enriched[index].formatSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-            guard needsCountry || needsFormat else {
-                continue
-            }
-
-            guard let metadata = try? await fetchReleaseMetadata(releaseId: enriched[index].releaseId) else {
-                continue
-            }
-
-            let resolvedCountry = needsCountry ? metadata.country : enriched[index].country
-            let resolvedFormat = needsFormat
-                ? formatSummary(from: metadata.formats) ?? enriched[index].formatSummary
-                : enriched[index].formatSummary
-
-            enriched[index] = LibraryRemoteItem(
-                releaseId: enriched[index].releaseId,
-                title: enriched[index].title,
-                artist: enriched[index].artist,
-                imageURLString: enriched[index].imageURLString,
-                year: enriched[index].year,
-                country: resolvedCountry,
-                formatSummary: resolvedFormat,
-                label: enriched[index].label,
-                catalogNumber: enriched[index].catalogNumber,
-                discogsListItemID: enriched[index].discogsListItemID,
-                position: enriched[index].position,
-                dateAdded: enriched[index].dateAdded
-            )
-
-            // Discogs applies stricter limits to release endpoints. Keep enrichment gentle.
-            try? await Task.sleep(nanoseconds: 200_000_000)
-        }
-
-        return enriched
-    }
-
-    private func fetchReleaseMetadata(releaseId: Int) async throws -> ReleaseMetadataResponse {
-        guard let url = URL(string: "\(baseURL)/releases/\(releaseId)") else {
-            throw LibraryServiceError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-
-        if let token = KeychainService.shared.discogsPersonalToken,
-           !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        for attempt in 0..<2 {
+        while true {
+            await applyRateLimit()
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw LibraryServiceError.invalidResponse
             }
 
-            if httpResponse.statusCode == 429, attempt == 0 {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if (200...299).contains(httpResponse.statusCode) {
+                return (data, response)
+            }
+
+            if httpResponse.statusCode == 401 {
+                try? DiscogsAuthService.shared.disconnect()
+                throw LibraryServiceError.notConnected
+            }
+
+            if httpResponse.statusCode == 429, attempt < max429Retries {
+                let retryAfterSeconds: UInt64
+                if let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After"),
+                   let seconds = UInt64(retryAfter) {
+                    retryAfterSeconds = seconds * 1_000_000_000
+                } else {
+                    retryAfterSeconds = backoff
+                }
+                try await Task.sleep(nanoseconds: retryAfterSeconds)
+                backoff *= 2
+                attempt += 1
                 continue
             }
 
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-                throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
-            }
-
-            let decoder = JSONDecoder()
-            return try decoder.decode(ReleaseMetadataResponse.self, from: data)
+            let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = (body?.isEmpty == false) ? body! : "Request failed. Please try again in a moment."
+            throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
         }
+    }
 
-        throw LibraryServiceError.invalidResponse
+    private func applyRateLimit() async {
+        rateLimitQueue.sync {
+            if let lastRequest = lastRequestTime {
+                let elapsed = Date().timeIntervalSince(lastRequest)
+                if elapsed < rateLimitDelay {
+                    Thread.sleep(forTimeInterval: rateLimitDelay - elapsed)
+                }
+            }
+            lastRequestTime = Date()
+        }
     }
 }

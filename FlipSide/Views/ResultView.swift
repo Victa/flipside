@@ -17,6 +17,7 @@ struct ResultView: View {
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var authService = DiscogsAuthService.shared
     @Environment(\.modelContext) private var modelContext
     
     // Collection status state per release ID
@@ -49,11 +50,8 @@ struct ResultView: View {
         // Skip if no matches or offline
         guard !discogsMatches.isEmpty, networkMonitor.isConnected else { return }
         
-        // Check if username is configured
-        guard let username = KeychainService.shared.discogsUsername, !username.isEmpty else { return }
-        
-        // Check if token is configured
-        guard KeychainService.shared.discogsPersonalToken != nil else { return }
+        guard authService.isConnected else { return }
+        guard let username = authService.currentUsername, !username.isEmpty else { return }
         
         await MainActor.run {
             isLoadingCollectionStatus = true

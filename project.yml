@@ -9,6 +9,9 @@ targets:
   FlipSide:
     type: application
     platform: iOS
+    configFiles:
+      Debug: FlipSide/Config/AppConfig.xcconfig
+      Release: FlipSide/Config/AppConfig.xcconfig
     sources:
       - FlipSide
     info:
@@ -17,6 +20,12 @@ targets:
         CFBundleDisplayName: Flip Side
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.flipside.oauth
+            CFBundleURLSchemes:
+              - flipside
+        DiscogsConsumerKey: $(DISCOGS_CONSUMER_KEY)
+        DiscogsConsumerSecret: $(DISCOGS_CONSUMER_SECRET)
         UILaunchScreen: {}
         NSCameraUsageDescription: "Flip Side needs camera access to scan vinyl record labels and covers."
         NSPhotoLibraryUsageDescription: "Flip Side needs photo library access to let you select existing photos of vinyl records."

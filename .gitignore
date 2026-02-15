@@ -93,3 +93,6 @@ iOSInjectionProject/
 .DS_Store
 
 .cursor/debug.log
+
+# Local secrets (do not commit)
+FlipSide/Config/DiscogsSecrets.xcconfig
