@@ -469,65 +469,46 @@ struct DetailView: View {
     
     private var pricingSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Marketplace Pricing")
+            Text("Suggested Pricing")
                 .font(.headline)
             
             VStack(spacing: 8) {
                 if let lowestPrice = match.lowestPrice {
-                    HStack {
-                        Image(systemName: "tag.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.green)
-                        
-                        Text("Lowest Price")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("$\(lowestPrice as NSDecimalNumber)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.green)
-                    }
+                    pricingRow(
+                        icon: "tag.fill",
+                        iconColor: .green,
+                        label: "Very Good (VG)",
+                        price: lowestPrice,
+                        priceColor: .green
+                    )
                 }
                 
                 if let medianPrice = match.medianPrice {
-                    HStack {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.blue)
-                        
-                        Text("Median Price")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("$\(medianPrice as NSDecimalNumber)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.blue)
-                    }
+                    pricingRow(
+                        icon: "chart.bar.fill",
+                        iconColor: .blue,
+                        label: "Very Good+ (VG+)",
+                        price: medianPrice,
+                        priceColor: .blue
+                    )
                 }
                 
                 if let highPrice = match.highPrice {
-                    HStack {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.orange)
-                        
-                        Text("High Price")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text("$\(highPrice as NSDecimalNumber)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.orange)
-                    }
+                    pricingRow(
+                        icon: "arrow.up.circle.fill",
+                        iconColor: .orange,
+                        label: "Near Mint (NM)",
+                        price: highPrice,
+                        priceColor: .orange
+                    )
+                }
+                
+                // Show when no condition-based pricing is available but we have some price
+                if match.lowestPrice != nil || match.medianPrice != nil || match.highPrice != nil {
+                    Text("Based on Discogs marketplace sales data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 4)
                 }
             }
             .padding()
@@ -535,6 +516,34 @@ struct DetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal)
+    }
+    
+    private func pricingRow(icon: String, iconColor: Color, label: String, price: Decimal, priceColor: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.subheadline)
+                .foregroundStyle(iconColor)
+            
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+            
+            Text(formatPrice(price))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(priceColor)
+        }
+    }
+    
+    private func formatPrice(_ price: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: price as NSDecimalNumber) ?? "$\(price)"
     }
     
     // MARK: - Identifiers Section

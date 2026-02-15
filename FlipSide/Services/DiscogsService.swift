@@ -220,14 +220,18 @@ final class DiscogsService {
         }
     }
     
-    private struct MarketplacePriceResponse: Codable {
-        let low: Double?
-        let median: Double?
-        let high: Double?
-        
-        enum CodingKeys: String, CodingKey {
-            case low, median, high
-        }
+    /// Price suggestion for a single condition grade
+    private struct PriceSuggestion: Codable {
+        let currency: String
+        let value: Double
+    }
+    
+    /// Parsed pricing from the price suggestions endpoint, mapped to condition grades
+    private struct ConditionPricing {
+        let veryGood: Double?       // VG
+        let veryGoodPlus: Double?   // VG+
+        let nearMint: Double?       // NM or M-
+        let mint: Double?           // M
     }
     
     // MARK: - Singleton
@@ -378,11 +382,13 @@ final class DiscogsService {
         }
     }
     
-    /// Fetch marketplace price suggestions (low, median, high)
+    /// Fetch marketplace price suggestions by condition grade
+    /// The Discogs price_suggestions endpoint returns a dictionary keyed by condition names
+    /// (e.g., "Mint (M)", "Very Good Plus (VG+)") with {currency, value} for each.
     /// - Parameter releaseId: The Discogs release ID
-    /// - Returns: MarketplacePriceResponse with pricing statistics
+    /// - Returns: ConditionPricing with prices mapped from condition grades
     /// - Throws: DiscogsError if fetch fails
-    private func fetchMarketplaceStats(releaseId: Int) async throws -> MarketplacePriceResponse {
+    private func fetchPriceSuggestions(releaseId: Int) async throws -> ConditionPricing {
         guard let personalToken = KeychainService.shared.discogsPersonalToken else {
             throw DiscogsError.noPersonalToken
         }
@@ -407,12 +413,41 @@ final class DiscogsService {
         // Validate response
         try validateHTTPResponse(response)
         
-        // Parse response
+        // Parse the response as a dictionary of condition → {currency, value}
+        // Example: {"Mint (M)": {"currency": "USD", "value": 43.13}, "Very Good Plus (VG+)": {"currency": "USD", "value": 27.64}, ...}
         let decoder = JSONDecoder()
         do {
-            return try decoder.decode(MarketplacePriceResponse.self, from: data)
+            let suggestions = try decoder.decode([String: PriceSuggestion].self, from: data)
+            
+            // Map condition keys to our structured pricing
+            // Keys from Discogs: "Mint (M)", "Near Mint (NM or M-)", "Very Good Plus (VG+)",
+            //                     "Very Good (VG)", "Good Plus (G+)", "Good (G)", "Fair (F)", "Poor (P)"
+            var vg: Double?
+            var vgPlus: Double?
+            var nm: Double?
+            var mint: Double?
+            
+            for (condition, suggestion) in suggestions {
+                let key = condition.lowercased()
+                if key.contains("near mint") {
+                    nm = suggestion.value
+                } else if key.contains("very good plus") || key.contains("vg+") {
+                    vgPlus = suggestion.value
+                } else if key.contains("very good") {
+                    vg = suggestion.value
+                } else if key.hasPrefix("mint") || key == "mint (m)" {
+                    mint = suggestion.value
+                }
+            }
+            
+            return ConditionPricing(
+                veryGood: vg,
+                veryGoodPlus: vgPlus,
+                nearMint: nm,
+                mint: mint
+            )
         } catch {
-            throw DiscogsError.parsingError("Failed to decode marketplace stats: \(error.localizedDescription)")
+            throw DiscogsError.parsingError("Failed to decode price suggestions: \(error.localizedDescription)")
         }
     }
     
@@ -763,13 +798,14 @@ extension DiscogsService {
             do {
                 let details = try await fetchReleaseDetails(releaseId: match.releaseId)
                 
-                // Fetch marketplace stats (low, median, high prices)
-                var marketplaceStats: MarketplacePriceResponse?
+                // Fetch price suggestions by condition grade (VG, VG+, NM, M)
+                var priceSuggestions: ConditionPricing?
                 do {
-                    marketplaceStats = try await fetchMarketplaceStats(releaseId: match.releaseId)
+                    priceSuggestions = try await fetchPriceSuggestions(releaseId: match.releaseId)
                 } catch {
-                    // Marketplace stats are optional - continue if they fail
-                    print("Failed to fetch marketplace stats for release \(match.releaseId): \(error)")
+                    // Price suggestions are optional - continue if they fail
+                    // (e.g., user may not have a seller profile, or release has no sales data)
+                    print("Failed to fetch price suggestions for release \(match.releaseId): \(error)")
                 }
                 
                 // Update match with ALL detailed information
@@ -833,10 +869,12 @@ extension DiscogsService {
                         )
                     } ?? [],
                     
-                    // Pricing - use marketplace stats for complete pricing data
-                    lowestPrice: marketplaceStats?.low.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
-                    medianPrice: marketplaceStats?.median.map { Decimal($0) },
-                    highPrice: marketplaceStats?.high.map { Decimal($0) },
+                    // Pricing - use condition-based price suggestions:
+                    //   VG (Very Good) → low price, VG+ → median, NM (Near Mint) → high
+                    // Falls back to release endpoint's lowest_price if no suggestions available
+                    lowestPrice: priceSuggestions?.veryGood.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
+                    medianPrice: priceSuggestions?.veryGoodPlus.map { Decimal($0) },
+                    highPrice: priceSuggestions?.nearMint.map { Decimal($0) },
                     
                     // Community stats
                     numForSale: details.numForSale,
