@@ -35,45 +35,9 @@ struct DiscogsMatchCarousel: View {
 #Preview("Multiple Matches") {
     DiscogsMatchCarousel(
         matches: [
-            DiscogsMatch(
-                releaseId: 123456,
-                title: "Kind of Blue",
-                artist: "Miles Davis",
-                year: 1959,
-                label: "Columbia",
-                catalogNumber: "CL 1355",
-                matchScore: 0.95,
-                imageUrl: URL(string: "https://i.discogs.com/example.jpg"),
-                genres: ["Jazz", "Cool Jazz", "Modal"],
-                lowestPrice: 29.99,
-                medianPrice: 45.00
-            ),
-            DiscogsMatch(
-                releaseId: 123457,
-                title: "Kind of Blue (Reissue)",
-                artist: "Miles Davis",
-                year: 1997,
-                label: "Columbia",
-                catalogNumber: "CK 64935",
-                matchScore: 0.82,
-                imageUrl: nil,
-                genres: ["Jazz", "Cool Jazz"],
-                lowestPrice: 19.99,
-                medianPrice: 30.00
-            ),
-            DiscogsMatch(
-                releaseId: 123458,
-                title: "Kind of Blue (2020 Remaster)",
-                artist: "Miles Davis",
-                year: 2020,
-                label: "Columbia",
-                catalogNumber: "COL2020",
-                matchScore: 0.78,
-                imageUrl: URL(string: "https://i.discogs.com/example2.jpg"),
-                genres: ["Jazz", "Cool Jazz", "Modal", "Bebop"],
-                lowestPrice: 35.00,
-                medianPrice: 50.00
-            )
+            .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
+            .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
+            .sample(releaseId: 123458, title: "Kind of Blue (2020 Remaster)", year: 2020, matchScore: 0.78, lowestPrice: 35.00)
         ],
         onMatchSelected: { match, index in
             print("Selected match #\(index + 1): \(match.title)")
@@ -85,19 +49,7 @@ struct DiscogsMatchCarousel: View {
 #Preview("Single Match") {
     DiscogsMatchCarousel(
         matches: [
-            DiscogsMatch(
-                releaseId: 999999,
-                title: "Blue Train",
-                artist: "John Coltrane",
-                year: 1957,
-                label: "Blue Note",
-                catalogNumber: "BLP 1577",
-                matchScore: 0.92,
-                imageUrl: URL(string: "https://i.discogs.com/example.jpg"),
-                genres: ["Jazz", "Hard Bop"],
-                lowestPrice: 150.00,
-                medianPrice: 250.00
-            )
+            .sample(releaseId: 999999, title: "Blue Train", artist: "John Coltrane", year: 1957, matchScore: 0.92, lowestPrice: 150.00)
         ],
         onMatchSelected: { match, index in
             print("Selected match #\(index + 1): \(match.title)")

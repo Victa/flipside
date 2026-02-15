@@ -175,45 +175,9 @@ struct ResultView: View {
                 confidence: 0.92
             ),
             discogsMatches: [
-                DiscogsMatch(
-                    releaseId: 123456,
-                    title: "Kind of Blue",
-                    artist: "Miles Davis",
-                    year: 1959,
-                    label: "Columbia",
-                    catalogNumber: "CL 1355",
-                    matchScore: 0.95,
-                    imageUrl: URL(string: "https://i.discogs.com/example.jpg"),
-                    genres: ["Jazz", "Cool Jazz", "Modal"],
-                    lowestPrice: 29.99,
-                    medianPrice: 45.00
-                ),
-                DiscogsMatch(
-                    releaseId: 123457,
-                    title: "Kind of Blue (Reissue)",
-                    artist: "Miles Davis",
-                    year: 1997,
-                    label: "Columbia",
-                    catalogNumber: "CK 64935",
-                    matchScore: 0.82,
-                    imageUrl: URL(string: "https://i.discogs.com/example2.jpg"),
-                    genres: ["Jazz", "Cool Jazz"],
-                    lowestPrice: 19.99,
-                    medianPrice: 30.00
-                ),
-                DiscogsMatch(
-                    releaseId: 123458,
-                    title: "Kind of Blue (Limited Edition)",
-                    artist: "Miles Davis",
-                    year: 2009,
-                    label: "Columbia/Legacy",
-                    catalogNumber: "88697 49698 1",
-                    matchScore: 0.75,
-                    imageUrl: nil,
-                    genres: ["Jazz"],
-                    lowestPrice: nil,
-                    medianPrice: nil
-                )
+                .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
+                .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
+                .sample(releaseId: 123458, title: "Kind of Blue (Limited Edition)", year: 2009, matchScore: 0.75, lowestPrice: nil)
             ],
             discogsError: nil,
             onMatchSelected: { match, index in

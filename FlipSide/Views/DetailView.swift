@@ -33,9 +33,44 @@ struct DetailView: View {
                     genresSection
                 }
                 
+                // Styles (more specific than genres)
+                if !match.styles.isEmpty {
+                    stylesSection
+                }
+                
+                // Formats (vinyl size, speed, etc.)
+                if !match.formats.isEmpty {
+                    formatsSection
+                }
+                
+                // Tracklist
+                if !match.tracklist.isEmpty {
+                    tracklistSection
+                }
+                
+                // Community stats
+                if match.inCollection != nil || match.inWantlist != nil || match.numForSale != nil {
+                    communityStatsSection
+                }
+                
                 // Pricing information
                 if match.lowestPrice != nil || match.medianPrice != nil {
                     pricingSection
+                }
+                
+                // Identifiers (barcodes, matrix numbers)
+                if !match.identifiers.isEmpty {
+                    identifiersSection
+                }
+                
+                // Videos
+                if !match.videos.isEmpty {
+                    videosSection
+                }
+                
+                // Notes
+                if let notes = match.notes, !notes.isEmpty {
+                    notesSection
                 }
                 
                 // View on Discogs button
@@ -148,13 +183,29 @@ struct DetailView: View {
                     .foregroundStyle(.secondary)
             }
             
-            // Metadata (Year, Label, Catalog Number)
+            // Metadata (Year, Label, Catalog Number, Country, etc.)
             VStack(alignment: .leading, spacing: 8) {
                 if let year = match.year {
                     metadataRow(
                         icon: "calendar",
                         label: "Year",
                         value: "\(year)"
+                    )
+                }
+                
+                if let released = match.released {
+                    metadataRow(
+                        icon: "calendar.badge.clock",
+                        label: "Released",
+                        value: released
+                    )
+                }
+                
+                if let country = match.country {
+                    metadataRow(
+                        icon: "globe",
+                        label: "Country",
+                        value: country
                     )
                 }
                 
@@ -221,6 +272,199 @@ struct DetailView: View {
         .padding(.horizontal)
     }
     
+    // MARK: - Styles Section
+    
+    private var stylesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Styles")
+                .font(.headline)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(match.styles, id: \.self) { style in
+                        Text(style)
+                            .font(.subheadline)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Formats Section
+    
+    private var formatsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Format")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(match.formats.enumerated()), id: \.offset) { _, format in
+                    HStack {
+                        Image(systemName: "opticaldisc")
+                            .font(.subheadline)
+                            .foregroundStyle(.purple)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(format.name)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            if let descriptions = format.descriptions, !descriptions.isEmpty {
+                                Text(descriptions.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            if let text = format.text, !text.isEmpty {
+                                Text(text)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        if let qty = format.qty {
+                            Text("×\(qty)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Tracklist Section
+    
+    private var tracklistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Tracklist")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(match.tracklist.enumerated()), id: \.offset) { _, track in
+                    HStack(alignment: .top) {
+                        // Position
+                        Text(track.position)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 30, alignment: .leading)
+                        
+                        // Title and artists
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(track.title)
+                                .font(.subheadline)
+                            
+                            if let artists = track.artists, !artists.isEmpty {
+                                Text(artists.map { $0.name }.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Duration
+                        if let duration = track.duration, !duration.isEmpty {
+                            Text(duration)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if track != match.tracklist.last {
+                        Divider()
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Community Stats Section
+    
+    private var communityStatsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Community")
+                .font(.headline)
+            
+            VStack(spacing: 8) {
+                if let have = match.inCollection {
+                    HStack {
+                        Image(systemName: "person.2.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.blue)
+                        
+                        Text("Have")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("\(have)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                }
+                
+                if let want = match.inWantlist {
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.pink)
+                        
+                        Text("Want")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("\(want)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                }
+                
+                if let forSale = match.numForSale {
+                    HStack {
+                        Image(systemName: "cart.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.green)
+                        
+                        Text("For Sale")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("\(forSale)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+    }
+    
     // MARK: - Pricing Section
     
     private var pricingSection: some View {
@@ -270,6 +514,119 @@ struct DetailView: View {
             .padding()
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Identifiers Section
+    
+    private var identifiersSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Identifiers")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(match.identifiers.enumerated()), id: \.offset) { _, identifier in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(identifier.type)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        
+                        Text(identifier.value)
+                            .font(.subheadline)
+                            .textSelection(.enabled)
+                        
+                        if let description = identifier.description, !description.isEmpty {
+                            Text(description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if identifier != match.identifiers.last {
+                        Divider()
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Videos Section
+    
+    private var videosSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Videos")
+                .font(.headline)
+            
+            VStack(spacing: 12) {
+                ForEach(Array(match.videos.enumerated()), id: \.offset) { _, video in
+                    Button {
+                        if let url = URL(string: video.uri) {
+                            openURL(url)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "play.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.red)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(video.title)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+                                
+                                if let description = video.description, !description.isEmpty {
+                                    Text(description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                
+                                if let duration = video.duration {
+                                    Text(formatDuration(duration))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Notes Section
+    
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Notes")
+                .font(.headline)
+            
+            Text(match.notes ?? "")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal)
     }
@@ -342,6 +699,14 @@ struct DetailView: View {
         default: return "questionmark.circle.fill"
         }
     }
+    
+    // MARK: - Helper Methods
+    
+    private func formatDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
 }
 
 // MARK: - Preview
@@ -354,13 +719,38 @@ struct DetailView: View {
                 title: "Kind of Blue",
                 artist: "Miles Davis",
                 year: 1959,
+                released: "1959-08-17",
+                country: "US",
                 label: "Columbia",
                 catalogNumber: "CL 1355",
                 matchScore: 0.95,
                 imageUrl: URL(string: "https://example.com/image.jpg"),
+                thumbnailUrl: nil,
                 genres: ["Jazz", "Cool Jazz", "Modal"],
+                styles: ["Bebop", "Hard Bop"],
+                formats: [
+                    DiscogsMatch.Format(name: "Vinyl", qty: "1", descriptions: ["LP", "Album", "Mono"], text: nil)
+                ],
+                tracklist: [
+                    DiscogsMatch.TracklistItem(position: "A1", title: "So What", duration: "9:22", artists: nil, extraartists: nil),
+                    DiscogsMatch.TracklistItem(position: "A2", title: "Freddie Freeloader", duration: "9:33", artists: nil, extraartists: nil)
+                ],
+                identifiers: [
+                    DiscogsMatch.Identifier(type: "Matrix / Runout", value: "XLP 47935-1A", description: "Side A")
+                ],
                 lowestPrice: 24.99,
-                medianPrice: 35.00
+                medianPrice: 35.00,
+                numForSale: 42,
+                inWantlist: 1523,
+                inCollection: 3891,
+                notes: "Classic jazz album recorded in 1959.",
+                dataQuality: "Correct",
+                masterId: 12345,
+                uri: "/release/123456",
+                resourceUrl: "https://api.discogs.com/releases/123456",
+                videos: [
+                    DiscogsMatch.Video(uri: "https://www.youtube.com/watch?v=example", title: "So What - Music Video", description: "Official", duration: 562)
+                ]
             ),
             onDone: {
                 print("Done tapped")

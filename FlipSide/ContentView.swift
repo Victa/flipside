@@ -353,12 +353,13 @@ struct HistoryView: View {
                 confidence: extractedData.confidence
             )
             
-            // Search Discogs for matches (if token is available)
+            // Search Discogs for matches and fetch ALL details (if token is available)
             var discogsMatches: [DiscogsMatch] = []
             var discogsError: String? = nil
             if KeychainService.shared.discogsPersonalToken != nil {
                 do {
-                    discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
+                    // Use searchAndFetchDetails to get complete information including pricing
+                    discogsMatches = try await DiscogsService.shared.searchAndFetchDetails(for: extractedData)
                 } catch {
                     // Capture error message to display in UI
                     discogsError = error.localizedDescription

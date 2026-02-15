@@ -186,37 +186,13 @@ struct DiscogsMatchCard: View {
 #Preview {
     VStack(spacing: 16) {
         DiscogsMatchCard(
-            match: DiscogsMatch(
-                releaseId: 123456,
-                title: "Kind of Blue",
-                artist: "Miles Davis",
-                year: 1959,
-                label: "Columbia",
-                catalogNumber: "CL 1355",
-                matchScore: 0.95,
-                imageUrl: URL(string: "https://i.discogs.com/example.jpg"),
-                genres: ["Jazz", "Cool Jazz", "Modal"],
-                lowestPrice: 29.99,
-                medianPrice: 45.00
-            ),
+            match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
             rank: 1
         )
         .padding()
         
         DiscogsMatchCard(
-            match: DiscogsMatch(
-                releaseId: 123457,
-                title: "Kind of Blue (Reissue)",
-                artist: "Miles Davis",
-                year: 1997,
-                label: "Columbia",
-                catalogNumber: "CK 64935",
-                matchScore: 0.82,
-                imageUrl: nil,
-                genres: ["Jazz", "Cool Jazz"],
-                lowestPrice: 19.99,
-                medianPrice: 30.00
-            ),
+            match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
             rank: 2
         )
         .padding()

@@ -101,28 +101,121 @@ final class DiscogsService {
         let title: String
         let artists: [Artist]?
         let year: Int?
+        let released: String?
+        let country: String?
         let labels: [Label]?
         let genres: [String]?
+        let styles: [String]?
         let images: [Image]?
+        let thumb: String?
+        let formats: [Format]?
+        let tracklist: [Track]?
+        let identifiers: [Identifier]?
+        let videos: [Video]?
         let lowestPrice: Double?
+        let numForSale: Int?
+        let community: Community?
+        let notes: String?
+        let dataQuality: String?
+        let masterId: Int?
+        let uri: String?
+        let resourceUrl: String?
         
         struct Artist: Codable {
             let name: String
+            let anv: String? // Artist name variation
+            let join: String? // Joining word (e.g., "feat.")
+            let role: String?
         }
         
         struct Label: Codable {
             let name: String
             let catno: String?
+            let entityType: String?
+            let entityTypeName: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case name, catno
+                case entityType = "entity_type"
+                case entityTypeName = "entity_type_name"
+            }
         }
         
         struct Image: Codable {
             let uri: String
             let type: String
+            let uri150: String?
+            let width: Int?
+            let height: Int?
+            
+            enum CodingKeys: String, CodingKey {
+                case type, uri, width, height
+                case uri150 = "uri150"
+            }
+        }
+        
+        struct Format: Codable {
+            let name: String
+            let qty: String?
+            let descriptions: [String]?
+            let text: String?
+        }
+        
+        struct Track: Codable {
+            let position: String
+            let type_: String?
+            let title: String
+            let duration: String?
+            let artists: [Artist]?
+            let extraartists: [ExtraArtist]?
+            
+            enum CodingKeys: String, CodingKey {
+                case position, title, duration, artists, extraartists
+                case type_ = "type_"
+            }
+            
+            struct ExtraArtist: Codable {
+                let name: String
+                let anv: String?
+                let role: String?
+                let tracks: String?
+            }
+        }
+        
+        struct Identifier: Codable {
+            let type: String
+            let value: String
+            let description: String?
+        }
+        
+        struct Video: Codable {
+            let uri: String
+            let title: String
+            let description: String?
+            let duration: Int?
+            let embed: Bool?
+        }
+        
+        struct Community: Codable {
+            let have: Int?
+            let want: Int?
+            let rating: Rating?
+            
+            struct Rating: Codable {
+                let count: Int?
+                let average: Double?
+            }
         }
         
         enum CodingKeys: String, CodingKey {
-            case id, title, artists, year, labels, genres, images
+            case id, title, artists, year, released, country, labels, genres, styles
+            case images, thumb, formats, tracklist, identifiers, videos, notes, uri
             case lowestPrice = "lowest_price"
+            case numForSale = "num_for_sale"
+            case community
+            case dataQuality = "data_quality"
+            case masterId = "master_id"
+            case resourceUrl = "resource_url"
         }
     }
     
@@ -181,17 +274,50 @@ final class DiscogsService {
             )
             
             return DiscogsMatch(
+                // Basic info
                 releaseId: result.id,
                 title: result.title,
                 artist: extractArtistFromTitle(result.title),
                 year: Int(result.year ?? ""),
+                released: nil,
+                country: nil,
                 label: result.label?.first,
                 catalogNumber: result.catno,
                 matchScore: matchScore,
+                
+                // Images
                 imageUrl: URL(string: result.coverImage ?? ""),
+                thumbnailUrl: nil,
+                
+                // Classification
                 genres: result.genre ?? [],
+                styles: [],
+                
+                // Formats
+                formats: [],
+                
+                // Tracklist
+                tracklist: [],
+                
+                // Identifiers
+                identifiers: [],
+                
+                // Pricing
                 lowestPrice: nil, // Will be fetched separately if needed
-                medianPrice: nil  // Will be fetched separately if needed
+                medianPrice: nil,  // Will be fetched separately if needed
+                
+                // Community stats
+                numForSale: nil,
+                inWantlist: nil,
+                inCollection: nil,
+                
+                // Additional info
+                notes: nil,
+                dataQuality: nil,
+                masterId: nil,
+                uri: nil,
+                resourceUrl: nil,
+                videos: []
             )
         }
         
@@ -587,19 +713,90 @@ extension DiscogsService {
             do {
                 let details = try await fetchReleaseDetails(releaseId: match.releaseId)
                 
-                // Update match with detailed information
+                // Update match with ALL detailed information
                 matches[index] = DiscogsMatch(
+                    // Basic info
                     releaseId: match.releaseId,
                     title: details.title,
                     artist: details.artists?.first?.name ?? match.artist,
                     year: details.year ?? match.year,
+                    released: details.released,
+                    country: details.country,
                     label: details.labels?.first?.name ?? match.label,
                     catalogNumber: details.labels?.first?.catno ?? match.catalogNumber,
                     matchScore: match.matchScore,
+                    
+                    // Images
                     imageUrl: details.images?.first.flatMap { URL(string: $0.uri) } ?? match.imageUrl,
+                    thumbnailUrl: details.thumb.flatMap { URL(string: $0) },
+                    
+                    // Classification
                     genres: details.genres ?? match.genres,
+                    styles: details.styles ?? [],
+                    
+                    // Formats
+                    formats: details.formats?.map { format in
+                        DiscogsMatch.Format(
+                            name: format.name,
+                            qty: format.qty,
+                            descriptions: format.descriptions,
+                            text: format.text
+                        )
+                    } ?? [],
+                    
+                    // Tracklist
+                    tracklist: details.tracklist?.map { track in
+                        DiscogsMatch.TracklistItem(
+                            position: track.position,
+                            title: track.title,
+                            duration: track.duration,
+                            artists: track.artists?.map { artist in
+                                DiscogsMatch.TracklistItem.TrackArtist(
+                                    name: artist.name,
+                                    role: artist.role
+                                )
+                            },
+                            extraartists: track.extraartists?.map { artist in
+                                DiscogsMatch.TracklistItem.TrackArtist(
+                                    name: artist.name,
+                                    role: artist.role
+                                )
+                            }
+                        )
+                    } ?? [],
+                    
+                    // Identifiers
+                    identifiers: details.identifiers?.map { id in
+                        DiscogsMatch.Identifier(
+                            type: id.type,
+                            value: id.value,
+                            description: id.description
+                        )
+                    } ?? [],
+                    
+                    // Pricing
                     lowestPrice: details.lowestPrice.map { Decimal($0) },
-                    medianPrice: nil // Median price requires marketplace stats endpoint
+                    medianPrice: nil, // Would need marketplace stats endpoint
+                    
+                    // Community stats
+                    numForSale: details.numForSale,
+                    inWantlist: details.community?.want,
+                    inCollection: details.community?.have,
+                    
+                    // Additional info
+                    notes: details.notes,
+                    dataQuality: details.dataQuality,
+                    masterId: details.masterId,
+                    uri: details.uri,
+                    resourceUrl: details.resourceUrl,
+                    videos: details.videos?.map { video in
+                        DiscogsMatch.Video(
+                            uri: video.uri,
+                            title: video.title,
+                            description: video.description,
+                            duration: video.duration
+                        )
+                    } ?? []
                 )
             } catch {
                 // If fetching details fails, keep the basic match

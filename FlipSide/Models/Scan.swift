@@ -60,18 +60,128 @@ struct ExtractedData: Codable {
     }
 }
 
-struct DiscogsMatch: Codable {
+struct DiscogsMatch: Codable, Equatable {
+    // Basic info
     var releaseId: Int
     var title: String
     var artist: String
     var year: Int?
+    var released: String? // Full release date (e.g., "1995-03-15")
+    var country: String?
     var label: String?
     var catalogNumber: String?
     var matchScore: Double
+    
+    // Images
     var imageUrl: URL?
+    var thumbnailUrl: URL?
+    
+    // Classification
     var genres: [String]
+    var styles: [String] // More specific than genres (e.g., "Dub", "Roots Reggae")
+    
+    // Formats (vinyl size, speed, etc.)
+    var formats: [Format]
+    
+    // Tracklist
+    var tracklist: [TracklistItem]
+    
+    // Identifiers (barcodes, matrix numbers)
+    var identifiers: [Identifier]
+    
+    // Pricing
     var lowestPrice: Decimal?
     var medianPrice: Decimal?
+    
+    // Community stats
+    var numForSale: Int? // Number of copies available for sale
+    var inWantlist: Int? // Number of users who want this
+    var inCollection: Int? // Number of users who have this
+    
+    // Additional info
+    var notes: String? // Release notes/description
+    var dataQuality: String? // "Correct", "Complete and Correct", etc.
+    var masterId: Int? // Master release ID for grouping pressings
+    var uri: String? // Discogs URI path
+    var resourceUrl: String? // API resource URL
+    var videos: [Video] // YouTube and other video links
+    
+    struct Format: Codable, Equatable {
+        var name: String // "Vinyl", "CD", etc.
+        var qty: String? // Quantity
+        var descriptions: [String]? // "7\"", "12\"", "LP", "Single", "45 RPM", etc.
+        var text: String? // Additional format text
+    }
+    
+    struct TracklistItem: Codable, Equatable {
+        var position: String // "A1", "B2", "1", etc.
+        var title: String
+        var duration: String? // "3:45"
+        var artists: [TrackArtist]?
+        var extraartists: [TrackArtist]? // Featured artists, producers, etc.
+        
+        struct TrackArtist: Codable, Equatable {
+            var name: String
+            var role: String? // "Vocals", "Producer", etc.
+        }
+    }
+    
+    struct Identifier: Codable, Equatable {
+        var type: String // "Barcode", "Matrix / Runout", "Label Code", etc.
+        var value: String
+        var description: String?
+    }
+    
+    struct Video: Codable, Equatable {
+        var uri: String // YouTube URL
+        var title: String
+        var description: String?
+        var duration: Int? // Duration in seconds
+    }
+    
+    // MARK: - Preview Helper
+    
+    #if DEBUG
+    static func sample(
+        releaseId: Int = 123456,
+        title: String = "Kind of Blue",
+        artist: String = "Miles Davis",
+        year: Int? = 1959,
+        matchScore: Double = 0.95,
+        genres: [String] = ["Jazz"],
+        lowestPrice: Decimal? = 24.99
+    ) -> DiscogsMatch {
+        return DiscogsMatch(
+            releaseId: releaseId,
+            title: title,
+            artist: artist,
+            year: year,
+            released: nil,
+            country: nil,
+            label: "Columbia",
+            catalogNumber: "CL 1355",
+            matchScore: matchScore,
+            imageUrl: nil,
+            thumbnailUrl: nil,
+            genres: genres,
+            styles: [],
+            formats: [],
+            tracklist: [],
+            identifiers: [],
+            lowestPrice: lowestPrice,
+            medianPrice: nil,
+            numForSale: nil,
+            inWantlist: nil,
+            inCollection: nil,
+            notes: nil,
+            dataQuality: nil,
+            masterId: nil,
+            uri: nil,
+            resourceUrl: nil,
+            videos: []
+        )
+    }
+    #endif
 }
 
 struct SocialContext: Codable {
