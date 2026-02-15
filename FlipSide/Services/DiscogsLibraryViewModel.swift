@@ -112,11 +112,10 @@ final class DiscogsLibraryViewModel: ObservableObject {
     }
 
     func refreshAll(modelContext: ModelContext) async -> RefreshResult {
-        async let collectionResult = refresh(listType: .collection, modelContext: modelContext)
-        async let wantlistResult = refresh(listType: .wantlist, modelContext: modelContext)
-
-        let collection = await collectionResult
-        let wantlist = await wantlistResult
+        // Discogs library endpoints are strict on rate limits.
+        // Refresh sequentially to avoid avoidable 429 responses.
+        let collection = await refresh(listType: .collection, modelContext: modelContext)
+        let wantlist = await refresh(listType: .wantlist, modelContext: modelContext)
         let results = [collection, wantlist]
         let failures = results.compactMap { result -> String? in
             if case let .failure(error) = result {
