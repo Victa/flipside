@@ -74,6 +74,7 @@ struct AppRootTabView: View {
                     extractedData: destination.extractedData,
                     discogsMatches: destination.discogsMatches,
                     discogsError: destination.discogsError,
+                    scanId: destination.scanId,
                     onMatchSelected: { match, index in
                         if let scanId = destination.scanId {
                             let fetchDescriptor = FetchDescriptor<Scan>(

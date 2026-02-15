@@ -10,7 +10,6 @@ struct SettingsView: View {
     @State private var openAIAPIKey: String = ""
     @State private var discogsPersonalToken: String = ""
     @State private var discogsUsername: String = ""
-
     @State private var showingSaveAlert = false
     @State private var saveAlertMessage = ""
     @State private var saveAlertTitle = "Success"
@@ -20,7 +19,6 @@ struct SettingsView: View {
     @State private var isRefreshingLibrary = false
     @State private var refreshStatusMessage: String?
     @State private var refreshStatusStyle: Color = .secondary
-
     private let keychainService = KeychainService.shared
 
     var body: some View {
@@ -195,7 +193,6 @@ struct SettingsView: View {
                             .font(.caption)
                     }
                 }
-
                 Section {
                     Button(role: .destructive, action: clearAllKeys) {
                         HStack {
@@ -284,6 +281,9 @@ struct SettingsView: View {
                 }
             }
         }
+        if let username = keychainService.discogsUsername {
+            discogsUsername = username // Show username (not sensitive)
+        }
     }
 
     private func refreshLibrary() {
@@ -356,7 +356,6 @@ struct SettingsView: View {
             }
         }
     }
-
     private func clearAllKeys() {
         do {
             try keychainService.deleteAll()
@@ -365,7 +364,6 @@ struct SettingsView: View {
             discogsPersonalToken = ""
             discogsUsername = ""
             refreshStatusMessage = nil
-
             saveAlertTitle = "Cleared"
             saveAlertMessage = "All saved credentials have been removed from secure storage."
             showingSaveAlert = true

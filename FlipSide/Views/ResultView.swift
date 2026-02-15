@@ -6,15 +6,22 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ResultView: View {
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
     let discogsError: String?
+    let scanId: UUID?
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @Environment(\.modelContext) private var modelContext
+    
+    // Collection status state per release ID
+    @State private var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
+    @State private var isLoadingCollectionStatus = false
     
     var body: some View {
         ScrollView {
@@ -31,6 +38,50 @@ struct ResultView: View {
         }
         .navigationTitle("Select Match")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadCollectionStatusForMatches()
+        }
+    }
+    
+    // MARK: - Collection Status Loading
+    
+    private func loadCollectionStatusForMatches() async {
+        // Skip if no matches or offline
+        guard !discogsMatches.isEmpty, networkMonitor.isConnected else { return }
+        
+        // Check if username is configured
+        guard let username = KeychainService.shared.discogsUsername, !username.isEmpty else { return }
+        
+        // Check if token is configured
+        guard KeychainService.shared.discogsPersonalToken != nil else { return }
+        
+        await MainActor.run {
+            isLoadingCollectionStatus = true
+        }
+        
+        // Check status for each match (up to 5 shown in carousel)
+        for match in discogsMatches.prefix(5) {
+            do {
+                let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                    releaseId: match.releaseId,
+                    username: username
+                )
+                
+                await MainActor.run {
+                    collectionStatusByReleaseId[match.releaseId] = (
+                        isInCollection: status.isInCollection,
+                        isInWantlist: status.isInWantlist
+                    )
+                }
+            } catch {
+                // Silently fail for individual status checks - not critical
+                print("Failed to check collection status for release \(match.releaseId): \(error)")
+            }
+        }
+        
+        await MainActor.run {
+            isLoadingCollectionStatus = false
+        }
     }
     
     // MARK: - Offline Indicator
@@ -78,6 +129,7 @@ struct ResultView: View {
                     
                     DiscogsMatchCarousel(
                         matches: Array(discogsMatches.prefix(5)),
+                        collectionStatusByReleaseId: collectionStatusByReleaseId,
                         onMatchSelected: { match, index in
                             onMatchSelected(match, index)
                         }
@@ -171,6 +223,7 @@ struct ResultView: View {
                 .sample(releaseId: 123458, title: "Kind of Blue (Limited Edition)", year: 2009, matchScore: 0.75)
             ],
             discogsError: nil,
+            scanId: nil,
             onMatchSelected: { match, index in
                 print("Preview: Selected \(match.title) at index \(index)")
             }

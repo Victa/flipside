@@ -22,6 +22,18 @@ struct DetailView: View {
     @State private var isLoadingDetails = false
     @State private var loadError: String?
     
+    // Collection status loading state
+    @State private var isLoadingCollectionStatus = false
+    @State private var isInCollection: Bool?
+    @State private var isInWantlist: Bool?
+    @State private var collectionError: String?
+    
+    // Collection action states
+    @State private var isAddingToCollection = false
+    @State private var isRemovingFromCollection = false
+    @State private var isAddingToWantlist = false
+    @State private var isRemovingFromWantlist = false
+    
     // Use complete match if available, otherwise use basic match
     private var displayMatch: DiscogsMatch {
         completeMatch ?? match
@@ -42,6 +54,9 @@ struct DetailView: View {
                 
                 // Album artwork
                 albumArtworkSection
+                
+                // View on Discogs button
+                viewOnDiscogsButton
                 
                 // Release information
                 releaseInformationSection
@@ -71,6 +86,9 @@ struct DetailView: View {
                     communityStatsSection
                 }
                 
+                // Your Collection Section
+                yourCollectionSection
+                
                 // Pricing information
                 if let conditionPrices = displayMatch.conditionPrices, !conditionPrices.isEmpty {
                     pricingSection
@@ -90,9 +108,6 @@ struct DetailView: View {
                 if let notes = displayMatch.notes, !notes.isEmpty {
                     notesSection
                 }
-                
-                // View on Discogs button
-                viewOnDiscogsButton
             }
             .padding(.vertical)
         }
@@ -857,6 +872,337 @@ struct DetailView: View {
         case 0.8...1.0: return "checkmark.circle.fill"
         case 0.6..<0.8: return "exclamationmark.circle.fill"
         default: return "questionmark.circle.fill"
+        }
+    }
+    
+    // MARK: - Your Collection Section
+    
+    private var yourCollectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your Collection")
+                .font(.headline)
+            
+            if let error = collectionError {
+                // Error state
+                VStack(spacing: 12) {
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                    
+                    if error.contains("username") || error.contains("token") {
+                        Button("Go to Settings") {
+                            // Open settings (would need to pass a binding or closure)
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button("Retry") {
+                            Task {
+                                await loadCollectionStatus()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if isLoadingCollectionStatus {
+                // Loading state
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("Checking collection status...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                // Status and action buttons
+                VStack(spacing: 12) {
+                    // Collection status
+                    HStack {
+                        Image(systemName: isInCollection == true ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isInCollection == true ? .green : .secondary)
+                        
+                        Text(isInCollection == true ? "In Your Collection" : "Not in Collection")
+                            .font(.subheadline)
+                            .foregroundStyle(isInCollection == true ? .primary : .secondary)
+                        
+                        Spacer()
+                        
+                        if isAddingToCollection || isRemovingFromCollection {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                        } else {
+                            Button {
+                                Task {
+                                    if isInCollection == true {
+                                        await removeFromCollection()
+                                    } else {
+                                        await addToCollection()
+                                    }
+                                }
+                            } label: {
+                                Text(isInCollection == true ? "Remove" : "Add")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isAddingToCollection || isRemovingFromCollection)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // Wantlist status
+                    HStack {
+                        Image(systemName: isInWantlist == true ? "heart.fill" : "heart")
+                            .font(.title3)
+                            .foregroundStyle(isInWantlist == true ? .pink : .secondary)
+                        
+                        Text(isInWantlist == true ? "In Your Wantlist" : "Not in Wantlist")
+                            .font(.subheadline)
+                            .foregroundStyle(isInWantlist == true ? .primary : .secondary)
+                        
+                        Spacer()
+                        
+                        if isAddingToWantlist || isRemovingFromWantlist {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                        } else {
+                            Button {
+                                Task {
+                                    if isInWantlist == true {
+                                        await removeFromWantlist()
+                                    } else {
+                                        await addToWantlist()
+                                    }
+                                }
+                            } label: {
+                                Text(isInWantlist == true ? "Remove" : "Add")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isAddingToWantlist || isRemovingFromWantlist)
+                        }
+                    }
+                    
+                    // Refresh button
+                    Button {
+                        Task {
+                            await loadCollectionStatus()
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Refresh Status")
+                        }
+                        .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+                    .disabled(isLoadingCollectionStatus)
+                }
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .padding(.horizontal)
+        .task {
+            // Load collection status when view appears
+            await loadCollectionStatus()
+        }
+    }
+    
+    // MARK: - Collection Action Methods
+    
+    private func loadCollectionStatus() async {
+        // Load cached scan data to show immediately (but always refresh from API when online)
+        if let scanId = scanId {
+            let fetchDescriptor = FetchDescriptor<Scan>(
+                predicate: #Predicate { $0.id == scanId }
+            )
+            
+            if let scan = try? modelContext.fetch(fetchDescriptor).first {
+                // Show cached values immediately while we refresh in the background
+                if scan.isInCollection != nil || scan.isInWantlist != nil {
+                    await MainActor.run {
+                        isInCollection = scan.isInCollection
+                        isInWantlist = scan.isInWantlist
+                    }
+                    
+                    // If offline, use cached data only
+                    if !networkMonitor.isConnected {
+                        return
+                    }
+                    // Otherwise, continue to refresh from API below
+                }
+            }
+        }
+        
+        guard let username = KeychainService.shared.discogsUsername, !username.isEmpty else {
+            await MainActor.run {
+                collectionError = "Discogs username not configured. Please add your username in Settings."
+            }
+            return
+        }
+        
+        guard KeychainService.shared.discogsPersonalToken != nil else {
+            await MainActor.run {
+                collectionError = "Discogs personal access token not configured. Please add your token in Settings."
+            }
+            return
+        }
+        
+        await MainActor.run {
+            isLoadingCollectionStatus = true
+            collectionError = nil
+        }
+        
+        do {
+            let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                releaseId: displayMatch.releaseId,
+                username: username
+            )
+            
+            await MainActor.run {
+                isInCollection = status.isInCollection
+                isInWantlist = status.isInWantlist
+                isLoadingCollectionStatus = false
+                
+                // Update scan if available
+                updateScanCollectionStatus(isInCollection: status.isInCollection, isInWantlist: status.isInWantlist)
+            }
+        } catch {
+            await MainActor.run {
+                collectionError = error.localizedDescription
+                isLoadingCollectionStatus = false
+            }
+        }
+    }
+    
+    private func addToCollection() async {
+        guard let username = KeychainService.shared.discogsUsername else { return }
+        
+        await MainActor.run {
+            isAddingToCollection = true
+        }
+        
+        do {
+            try await DiscogsCollectionService.shared.addToCollection(
+                releaseId: displayMatch.releaseId,
+                username: username
+            )
+            
+            await MainActor.run {
+                isInCollection = true
+                isAddingToCollection = false
+                updateScanCollectionStatus(isInCollection: true, isInWantlist: isInWantlist)
+            }
+        } catch {
+            await MainActor.run {
+                isAddingToCollection = false
+                collectionError = "Failed to add to collection: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func removeFromCollection() async {
+        guard let username = KeychainService.shared.discogsUsername else { return }
+        
+        await MainActor.run {
+            isRemovingFromCollection = true
+        }
+        
+        do {
+            try await DiscogsCollectionService.shared.removeFromCollection(
+                releaseId: displayMatch.releaseId,
+                username: username
+            )
+            
+            await MainActor.run {
+                isInCollection = false
+                isRemovingFromCollection = false
+                updateScanCollectionStatus(isInCollection: false, isInWantlist: isInWantlist)
+            }
+        } catch {
+            await MainActor.run {
+                isRemovingFromCollection = false
+                collectionError = "Failed to remove from collection: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func addToWantlist() async {
+        guard let username = KeychainService.shared.discogsUsername else { return }
+        
+        await MainActor.run {
+            isAddingToWantlist = true
+        }
+        
+        do {
+            try await DiscogsCollectionService.shared.addToWantlist(
+                releaseId: displayMatch.releaseId,
+                username: username
+            )
+            
+            await MainActor.run {
+                isInWantlist = true
+                isAddingToWantlist = false
+                updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: true)
+            }
+        } catch {
+            await MainActor.run {
+                isAddingToWantlist = false
+                collectionError = "Failed to add to wantlist: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func removeFromWantlist() async {
+        guard let username = KeychainService.shared.discogsUsername else { return }
+        
+        await MainActor.run {
+            isRemovingFromWantlist = true
+        }
+        
+        do {
+            try await DiscogsCollectionService.shared.removeFromWantlist(
+                releaseId: displayMatch.releaseId,
+                username: username
+            )
+            
+            await MainActor.run {
+                isInWantlist = false
+                isRemovingFromWantlist = false
+                updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: false)
+            }
+        } catch {
+            await MainActor.run {
+                isRemovingFromWantlist = false
+                collectionError = "Failed to remove from wantlist: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func updateScanCollectionStatus(isInCollection: Bool?, isInWantlist: Bool?) {
+        guard let scanId = scanId else { return }
+        
+        let fetchDescriptor = FetchDescriptor<Scan>(
+            predicate: #Predicate { $0.id == scanId }
+        )
+        
+        if let scan = try? modelContext.fetch(fetchDescriptor).first {
+            scan.isInCollection = isInCollection
+            scan.isInWantlist = isInWantlist
+            try? modelContext.save()
         }
     }
     

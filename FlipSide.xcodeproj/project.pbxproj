@@ -33,6 +33,7 @@
 		BA0BF7913856EC44C34DE9CF /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABD410546466CB976DF177F /* ResultView.swift */; };
 		DAD35DB0C043D19ADE4E7D1E /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F710380C860B44B2210F50C /* ProcessingView.swift */; };
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
+			6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,9 +61,10 @@
 		A56FBE1AEBDC9E0B1BEC8E38 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryViewModel.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
-		C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyCollectionView.swift; sourceTree = "<group>"; };
-		D961EB88A849DF0D30E563D5 /* SwiftDataLibraryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataLibraryCache.swift; sourceTree = "<group>"; };
-		EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryService.swift; sourceTree = "<group>"; };
+			C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyCollectionView.swift; sourceTree = "<group>"; };
+			D961EB88A849DF0D30E563D5 /* SwiftDataLibraryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataLibraryCache.swift; sourceTree = "<group>"; };
+			EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryService.swift; sourceTree = "<group>"; };
+			9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsCollectionService.swift; sourceTree = "<group>"; };
 		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -120,9 +122,10 @@
 		C1767B24B5559214C69C9EF3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */,
-				BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */,
-				0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
+					EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */,
+					BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */,
+					9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */,
+					0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
 				95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */,
 				908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */,
 				A56FBE1AEBDC9E0B1BEC8E38 /* NetworkMonitor.swift */,
@@ -205,12 +208,13 @@
 				093B30395BF65F6379720DE8 /* CachedAsyncImage.swift in Sources */,
 				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
-				2B551AFB11CBF61727E62907 /* DetailView.swift in Sources */,
-				60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */,
-				B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */,
-				3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */,
-				8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */,
-				470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
+					2B551AFB11CBF61727E62907 /* DetailView.swift in Sources */,
+					60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */,
+					B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */,
+					3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */,
+					8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */,
+					6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */,
+					470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
 				81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */,
 				1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */,
 				A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */,

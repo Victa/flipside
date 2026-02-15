@@ -9,20 +9,25 @@ import SwiftUI
 
 struct DiscogsMatchCarousel: View {
     let matches: [DiscogsMatch]
+    var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(Array(matches.enumerated()), id: \.element.releaseId) { index, match in
-                    DiscogsMatchCard(match: match, rank: index + 1)
-                        .frame(width: 280)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            onMatchSelected(match, index)
-                        }
-                        .scaleEffect(1.0) // Enables tap animation
-                        .animation(.easeInOut(duration: 0.1), value: false)
+                    DiscogsMatchCard(
+                        match: match,
+                        rank: index + 1,
+                        collectionStatus: collectionStatusByReleaseId[match.releaseId]
+                    )
+                    .frame(width: 280)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onMatchSelected(match, index)
+                    }
+                    .scaleEffect(1.0) // Enables tap animation
+                    .animation(.easeInOut(duration: 0.1), value: false)
                 }
             }
             .padding(.horizontal)
