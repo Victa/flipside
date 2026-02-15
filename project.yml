@@ -9,6 +9,9 @@ targets:
   FlipSide:
     type: application
     platform: iOS
+    configFiles:
+      Debug: FlipSide/Config/AppConfig.xcconfig
+      Release: FlipSide/Config/AppConfig.xcconfig
     sources:
       - FlipSide
     info:
@@ -38,5 +41,3 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only
         ENABLE_PREVIEWS: YES
-        DISCOGS_CONSUMER_KEY: ""
-        DISCOGS_CONSUMER_SECRET: ""

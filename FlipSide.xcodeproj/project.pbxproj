@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -17,11 +17,10 @@
 		3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BDF18534824A329CD517D6 /* DiscogsMatchCard.swift */; };
 		30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA9D7A0E93BBB08AADC9FEA /* ContentView.swift */; };
 		34BD86082ABF7992AEB7DE2C /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BDF0856DA2E3DFDB893F653 /* VisionService.swift */; };
-		C1D2E3F40516273849A5B6C7 /* DiscogsAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* DiscogsAuthService.swift */; };
-		D1E2F30415263748A9B5C6D7 /* DiscogsOAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* DiscogsOAuthSigner.swift */; };
 		38F77FC47EA68CA23E4F8F94 /* MyCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */; };
 		470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */; };
 		60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */; };
+		6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */; };
 		745D095F6754F6C808494527 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB381F6B8C3C40FCFE5B72E /* PersistenceService.swift */; };
 		81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C713B19E709576052C4C831F /* FlipSideApp.swift */; };
 		83E55396995E052B7D63BD33 /* LibraryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E488ECD9838D0ABB7F4A33D /* LibraryEntry.swift */; };
@@ -33,9 +32,10 @@
 		AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */; };
 		B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */; };
 		BA0BF7913856EC44C34DE9CF /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABD410546466CB976DF177F /* ResultView.swift */; };
+		C1D2E3F40516273849A5B6C7 /* DiscogsAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* DiscogsAuthService.swift */; };
+		D1E2F30415263748A9B5C6D7 /* DiscogsOAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* DiscogsOAuthSigner.swift */; };
 		DAD35DB0C043D19ADE4E7D1E /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F710380C860B44B2210F50C /* ProcessingView.swift */; };
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
-			6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,17 +59,19 @@
 		908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureService.swift; sourceTree = "<group>"; };
 		96BDF18534824A329CD517D6 /* DiscogsMatchCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsMatchCard.swift; sourceTree = "<group>"; };
+		9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsCollectionService.swift; sourceTree = "<group>"; };
 		9BDF0856DA2E3DFDB893F653 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5C /* DiscogsAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsAuthService.swift; sourceTree = "<group>"; };
 		A56FBE1AEBDC9E0B1BEC8E38 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5061728394A5B6C /* DiscogsOAuthSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsOAuthSigner.swift; sourceTree = "<group>"; };
 		BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryViewModel.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
-			C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyCollectionView.swift; sourceTree = "<group>"; };
-			D961EB88A849DF0D30E563D5 /* SwiftDataLibraryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataLibraryCache.swift; sourceTree = "<group>"; };
-			EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryService.swift; sourceTree = "<group>"; };
-			9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsCollectionService.swift; sourceTree = "<group>"; };
-		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyCollectionView.swift; sourceTree = "<group>"; };
+		D961EB88A849DF0D30E563D5 /* SwiftDataLibraryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataLibraryCache.swift; sourceTree = "<group>"; };
+		EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryService.swift; sourceTree = "<group>"; };
+		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E7F8091A2B3C4D5E6F708192 /* AppConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppConfig.xcconfig; sourceTree = "<group>"; };
+		F8091A2B3C4D5E6F708192A3 /* DiscogsSecrets.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DiscogsSecrets.xcconfig.example; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -88,6 +90,7 @@
 				8FA9D7A0E93BBB08AADC9FEA /* ContentView.swift */,
 				C713B19E709576052C4C831F /* FlipSideApp.swift */,
 				381C45531F49D9710B80692F /* Info.plist */,
+				39A5D7E1F203B4C5D6E7F809 /* Config */,
 				0945C28685A37273586B835C /* Models */,
 				C1767B24B5559214C69C9EF3 /* Services */,
 				68D6B60D9BCBDCFEAA631008 /* Views */,
@@ -126,12 +129,12 @@
 		C1767B24B5559214C69C9EF3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-					EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */,
-					BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */,
-					A1B2C3D4E5F60718293A4B5C /* DiscogsAuthService.swift */,
-					B1C2D3E4F5061728394A5B6C /* DiscogsOAuthSigner.swift */,
-					9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */,
-					0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
+				EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */,
+				BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */,
+				A1B2C3D4E5F60718293A4B5C /* DiscogsAuthService.swift */,
+				B1C2D3E4F5061728394A5B6C /* DiscogsOAuthSigner.swift */,
+				9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */,
+				0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
 				95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */,
 				908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */,
 				A56FBE1AEBDC9E0B1BEC8E38 /* NetworkMonitor.swift */,
@@ -156,6 +159,15 @@
 				ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		39A5D7E1F203B4C5D6E7F809 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				E7F8091A2B3C4D5E6F708192 /* AppConfig.xcconfig */,
+				F8091A2B3C4D5E6F708192A3 /* DiscogsSecrets.xcconfig.example */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -197,7 +209,6 @@
 			);
 			mainGroup = F3082CA6946E4CE2ACBEB8A4;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -214,15 +225,15 @@
 				093B30395BF65F6379720DE8 /* CachedAsyncImage.swift in Sources */,
 				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
-					2B551AFB11CBF61727E62907 /* DetailView.swift in Sources */,
-					60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */,
-					B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */,
-					3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */,
-					8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */,
-					C1D2E3F40516273849A5B6C7 /* DiscogsAuthService.swift in Sources */,
-					6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */,
-					D1E2F30415263748A9B5C6D7 /* DiscogsOAuthSigner.swift in Sources */,
-					470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
+				2B551AFB11CBF61727E62907 /* DetailView.swift in Sources */,
+				60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */,
+				B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */,
+				3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */,
+				8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */,
+				C1D2E3F40516273849A5B6C7 /* DiscogsAuthService.swift in Sources */,
+				6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */,
+				D1E2F30415263748A9B5C6D7 /* DiscogsOAuthSigner.swift in Sources */,
+				470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
 				81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */,
 				1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */,
 				A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */,
@@ -248,12 +259,11 @@
 /* Begin XCBuildConfiguration section */
 		066E96F1A12BEBE6AFF2DA06 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E7F8091A2B3C4D5E6F708192 /* AppConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DISCOGS_CONSUMER_KEY = "";
-				DISCOGS_CONSUMER_SECRET = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = FlipSide/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -390,12 +400,11 @@
 		};
 		E483EC43C68BED6029FA85F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E7F8091A2B3C4D5E6F708192 /* AppConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DISCOGS_CONSUMER_KEY = "";
-				DISCOGS_CONSUMER_SECRET = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = FlipSide/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
