@@ -321,7 +321,7 @@ struct SocialContext: Codable {
 ### Milestone 5: UI Polish (Week 3)
 
 - [ ] 24. Polish DetailView design (now created in Milestone 4.5)
-- [ ] 25. Add image comparison feature (scanned vs Discogs in DetailView)
+- [ ] 25. ~~Add image comparison feature (scanned vs Discogs in DetailView)~~ 
 - [ ] 26. Enhance match card animations and transitions
 - [ ] 27. Refine error states and loading indicators across all views
 - [ ] 28. Add haptic feedback for interactions

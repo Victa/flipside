@@ -24,15 +24,6 @@ struct ResultView: View {
                     offlineIndicatorBanner
                 }
                 
-                // Captured image (smaller for carousel focus)
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(radius: 4)
-                    .padding(.horizontal)
-                
                 // Match selection section
                 matchSelectionSection
             }
