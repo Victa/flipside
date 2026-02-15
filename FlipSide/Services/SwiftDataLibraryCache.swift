@@ -216,6 +216,86 @@ final class SwiftDataLibraryCache {
         try modelContext.save()
     }
 
+    func upsertLocalEntry(
+        from match: DiscogsMatch,
+        listType: LibraryListType,
+        in modelContext: ModelContext
+    ) throws {
+        let now = Date()
+        let entries = try fetchEntries(releaseId: match.releaseId, listType: listType, in: modelContext)
+
+        if let existing = entries.first {
+            existing.title = match.title
+            existing.artist = match.artist
+            existing.imageURLString = match.imageUrl?.absoluteString ?? match.thumbnailUrl?.absoluteString
+            existing.year = match.year
+            existing.country = match.country
+            existing.formatSummary = formatSummary(from: match.formats)
+            existing.label = match.label
+            existing.catalogNumber = match.catalogNumber
+            existing.dateAdded = existing.dateAdded ?? now
+            existing.updatedAt = now
+
+            if listType == .wantlist {
+                let extras = entries.dropFirst()
+                for duplicate in extras {
+                    modelContext.delete(duplicate)
+                }
+            }
+        } else {
+            let entry = LibraryEntry(
+                releaseId: match.releaseId,
+                title: match.title,
+                artist: match.artist,
+                imageURLString: match.imageUrl?.absoluteString ?? match.thumbnailUrl?.absoluteString,
+                year: match.year,
+                country: match.country,
+                formatSummary: formatSummary(from: match.formats),
+                label: match.label,
+                catalogNumber: match.catalogNumber,
+                listType: listType,
+                discogsListItemID: nil,
+                position: nil,
+                dateAdded: now,
+                updatedAt: now
+            )
+            modelContext.insert(entry)
+        }
+
+        try modelContext.save()
+    }
+
+    func removeOneLocalEntry(
+        releaseId: Int,
+        listType: LibraryListType,
+        in modelContext: ModelContext
+    ) throws {
+        let entries = try fetchEntries(releaseId: releaseId, listType: listType, in: modelContext)
+        if let entry = entries.first {
+            modelContext.delete(entry)
+        }
+        try modelContext.save()
+    }
+
+    func removeAllLocalEntries(
+        releaseId: Int,
+        listType: LibraryListType,
+        in modelContext: ModelContext
+    ) throws {
+        let entries = try fetchEntries(releaseId: releaseId, listType: listType, in: modelContext)
+        entries.forEach { modelContext.delete($0) }
+        try modelContext.save()
+    }
+
+    func containsLocalEntry(
+        releaseId: Int,
+        listType: LibraryListType,
+        in modelContext: ModelContext
+    ) throws -> Bool {
+        let entries = try fetchEntries(releaseId: releaseId, listType: listType, in: modelContext)
+        return !entries.isEmpty
+    }
+
     private func updateLastRefreshDate(
         _ date: Date,
         for listType: LibraryListType,
@@ -243,5 +323,47 @@ final class SwiftDataLibraryCache {
     private func entryKey(releaseId: Int, listType: LibraryListType, discogsListItemID: Int?) -> String {
         let itemIdComponent = discogsListItemID.map(String.init) ?? "none"
         return "\(listType.rawValue)-\(releaseId)-\(itemIdComponent)"
+    }
+
+    private func fetchEntries(
+        releaseId: Int,
+        listType: LibraryListType,
+        in modelContext: ModelContext
+    ) throws -> [LibraryEntry] {
+        let listTypeRaw = listType.rawValue
+        var descriptor = FetchDescriptor<LibraryEntry>(
+            predicate: #Predicate { entry in
+                entry.listTypeRaw == listTypeRaw && entry.releaseId == releaseId
+            }
+        )
+        descriptor.sortBy = [
+            SortDescriptor(\LibraryEntry.dateAdded, order: .forward),
+            SortDescriptor(\LibraryEntry.updatedAt, order: .forward)
+        ]
+        return try modelContext.fetch(descriptor)
+    }
+
+    private func formatSummary(from formats: [DiscogsMatch.Format]) -> String? {
+        guard !formats.isEmpty else {
+            return nil
+        }
+
+        var parts: [String] = []
+        var seen = Set<String>()
+
+        for format in formats {
+            let values = [format.name] + (format.descriptions ?? []) + [format.text]
+            for value in values {
+                let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !trimmed.isEmpty else { continue }
+                let key = trimmed.lowercased()
+                if !seen.contains(key) {
+                    seen.insert(key)
+                    parts.append(trimmed)
+                }
+            }
+        }
+
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }
