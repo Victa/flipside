@@ -15,6 +15,23 @@ struct LibraryRemoteItem {
     let dateAdded: Date?
 }
 
+struct LibraryPageChunk {
+    let listType: LibraryListType
+    let page: Int
+    let totalPages: Int
+    let itemsReceivedThisPage: Int
+    let totalItemsExpected: Int?
+}
+
+struct LibrarySyncSummary {
+    let listType: LibraryListType
+    let pagesFetched: Int
+    let totalPages: Int
+    let itemsFetched: Int
+    let totalItemsExpected: Int?
+    let completed: Bool
+}
+
 final class DiscogsLibraryService {
     static let shared = DiscogsLibraryService()
 
@@ -68,6 +85,96 @@ final class DiscogsLibraryService {
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
         let endpoint = "/users/\(encoded)/wants"
         return try await fetchPaginatedWantlistItems(endpoint: endpoint)
+    }
+
+    func syncCollectionPaged(
+        username: String,
+        onPage: @escaping @MainActor ([LibraryRemoteItem], LibraryPageChunk) throws -> Void
+    ) async throws -> LibrarySyncSummary {
+        try await syncListPaged(listType: .collection, username: username, onPage: onPage)
+    }
+
+    func syncWantlistPaged(
+        username: String,
+        onPage: @escaping @MainActor ([LibraryRemoteItem], LibraryPageChunk) throws -> Void
+    ) async throws -> LibrarySyncSummary {
+        try await syncListPaged(listType: .wantlist, username: username, onPage: onPage)
+    }
+
+    func syncListPaged(
+        listType: LibraryListType,
+        username: String,
+        onPage: @escaping @MainActor ([LibraryRemoteItem], LibraryPageChunk) throws -> Void
+    ) async throws -> LibrarySyncSummary {
+        guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LibraryServiceError.missingUsername
+        }
+
+        let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
+        let endpoint: String
+        switch listType {
+        case .collection:
+            endpoint = "/users/\(encoded)/collection/folders/0/releases"
+        case .wantlist:
+            endpoint = "/users/\(encoded)/wants"
+        }
+
+        var page = 1
+        var totalPages = 1
+        var totalItemsExpected: Int?
+        var itemsFetched = 0
+
+        repeat {
+            switch listType {
+            case .collection:
+                let pageResponse: CollectionResponse = try await request(endpoint: endpoint, page: page)
+                let parsedItems = mapCollection(pageResponse, page: page)
+                totalPages = max(pageResponse.pagination.pages, 1)
+                totalItemsExpected = pageResponse.pagination.items
+                itemsFetched += parsedItems.count
+
+                let chunk = LibraryPageChunk(
+                    listType: listType,
+                    page: page,
+                    totalPages: totalPages,
+                    itemsReceivedThisPage: parsedItems.count,
+                    totalItemsExpected: totalItemsExpected
+                )
+
+                try await MainActor.run {
+                    try onPage(parsedItems, chunk)
+                }
+            case .wantlist:
+                let pageResponse: WantlistResponse = try await request(endpoint: endpoint, page: page)
+                let parsedItems = mapWantlist(pageResponse, page: page)
+                totalPages = max(pageResponse.pagination.pages, 1)
+                totalItemsExpected = pageResponse.pagination.items
+                itemsFetched += parsedItems.count
+
+                let chunk = LibraryPageChunk(
+                    listType: listType,
+                    page: page,
+                    totalPages: totalPages,
+                    itemsReceivedThisPage: parsedItems.count,
+                    totalItemsExpected: totalItemsExpected
+                )
+
+                try await MainActor.run {
+                    try onPage(parsedItems, chunk)
+                }
+            }
+
+            page += 1
+        } while page <= totalPages
+
+        return LibrarySyncSummary(
+            listType: listType,
+            pagesFetched: max(page - 1, 0),
+            totalPages: totalPages,
+            itemsFetched: itemsFetched,
+            totalItemsExpected: totalItemsExpected,
+            completed: true
+        )
     }
 
     private func fetchPaginatedCollectionItems(endpoint: String) async throws -> [LibraryRemoteItem] {

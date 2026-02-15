@@ -17,6 +17,7 @@ struct OnboardingFlowView: View {
     @State private var isSyncing = false
     @State private var syncErrorMessage: String?
     @State private var hasAttemptedInitialSync = false
+    @State private var hasTriggeredOnboardingCompletion = false
 
     private let keychainService = KeychainService.shared
 
@@ -150,8 +151,12 @@ struct OnboardingFlowView: View {
     private var syncingStepView: some View {
         VStack(spacing: 16) {
             if isSyncing {
-                ProgressView("Refreshing your Discogs collection and wantlist...")
+                ProgressView()
+                    .progressViewStyle(.circular)
+
+                Text(syncProgressText)
                     .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             }
 
             if let syncErrorMessage {
@@ -179,6 +184,17 @@ struct OnboardingFlowView: View {
                     .foregroundStyle(.green)
             }
         }
+    }
+
+    private var syncProgressText: String {
+        let collectionCount = libraryViewModel.collectionState.itemsLoadedCount
+        let wantlistCount = libraryViewModel.wantlistState.itemsLoadedCount
+
+        if libraryViewModel.collectionState.isInitialPageLoaded && libraryViewModel.wantlistState.isInitialPageLoaded {
+            return "Loaded \(collectionCount) collection and \(wantlistCount) wantlist records. Finishing sync in background..."
+        }
+
+        return "Refreshing your Discogs collection and wantlist...\nLoaded \(collectionCount) collection and \(wantlistCount) wantlist records so far."
     }
 
     private func initialStep() -> OnboardingStep {
@@ -293,15 +309,34 @@ struct OnboardingFlowView: View {
         isSyncing = true
         syncErrorMessage = nil
 
-        let result = await libraryViewModel.refreshAll(modelContext: modelContext)
+        Task {
+            let result = await libraryViewModel.refreshAllIncremental(modelContext: modelContext) {
+                if !hasTriggeredOnboardingCompletion {
+                    hasTriggeredOnboardingCompletion = true
+                    onCompleted()
+                }
+            }
 
-        isSyncing = false
+            await MainActor.run {
+                isSyncing = false
 
-        if let failure = result.failureMessage {
-            syncErrorMessage = "Refresh failed: \(failure)"
-        } else {
-            syncErrorMessage = nil
-            onCompleted()
+                if let failure = result.failureMessage {
+                    let collectionReady = libraryViewModel.collectionState.isInitialPageLoaded
+                    let wantlistReady = libraryViewModel.wantlistState.isInitialPageLoaded
+
+                    if collectionReady || wantlistReady {
+                        syncErrorMessage = "Partial sync complete. Some data loaded, but background refresh hit an issue: \(failure)"
+                    } else {
+                        syncErrorMessage = "Refresh failed: \(failure)"
+                    }
+                } else {
+                    syncErrorMessage = nil
+                    if !hasTriggeredOnboardingCompletion {
+                        hasTriggeredOnboardingCompletion = true
+                        onCompleted()
+                    }
+                }
+            }
         }
     }
 }

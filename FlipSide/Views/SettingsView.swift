@@ -138,7 +138,10 @@ struct SettingsView: View {
         refreshStatusStyle = .secondary
 
         Task {
-            let result = await libraryViewModel.refreshAll(modelContext: modelContext)
+            let result = await libraryViewModel.refreshAllIncremental(
+                modelContext: modelContext,
+                onInitialGateReady: {}
+            )
 
             await MainActor.run {
                 isRefreshingLibrary = false

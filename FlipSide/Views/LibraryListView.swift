@@ -44,8 +44,14 @@ struct LibraryListView: View {
         Group {
             if entries.isEmpty {
                 if state.isRefreshing {
-                    ProgressView("Loading \(listType.title)...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack(spacing: 8) {
+                        ProgressView("Loading \(listType.title)...")
+                        Text(backgroundSyncBannerText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     emptyStateView
                 }
@@ -65,6 +71,15 @@ struct LibraryListView: View {
                             .padding(8)
                             .frame(maxWidth: .infinity)
                             .background(Color.orange.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    } else if state.isBackgroundRefreshing {
+                        Text(backgroundSyncBannerText)
+                            .font(.caption)
+                            .padding(8)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue.opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .padding(.horizontal)
                             .padding(.top, 8)
@@ -88,6 +103,16 @@ struct LibraryListView: View {
         .refreshable {
             _ = await viewModel.refresh(listType: listType, modelContext: modelContext)
         }
+    }
+
+    private var backgroundSyncBannerText: String {
+        let pageText: String
+        if state.totalPages > 0 {
+            pageText = "Syncing page \(max(state.pagesLoaded, 1))/\(state.totalPages)"
+        } else {
+            pageText = "Syncing pages"
+        }
+        return "\(pageText)... (\(state.itemsLoadedCount) items loaded)"
     }
 
     private var emptyStateView: some View {
