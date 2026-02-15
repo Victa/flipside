@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ResultView: View {
+    @Environment(\.modelContext) private var modelContext
+
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
@@ -17,6 +19,8 @@ struct ResultView: View {
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var authService = DiscogsAuthService.shared
+    private let libraryCache = SwiftDataLibraryCache.shared
+    private let libraryFreshInterval: TimeInterval = 15 * 60
     
     // Collection status state per release ID
     @State private var collectionStatusByReleaseId: [Int: CollectionStatus] = [:]
@@ -71,6 +75,18 @@ struct ResultView: View {
         guard authService.isConnected else { return }
         guard let username = authService.currentUsername, !username.isEmpty else { return }
 
+        if !forceRefresh, let local = localLibraryStatus(for: match.releaseId) {
+            collectionStatusByReleaseId[match.releaseId] = local.status
+            await CollectionStatusStore.shared.updateCachedStatus(
+                username: username,
+                releaseId: match.releaseId,
+                status: local.status
+            )
+            if local.isFresh {
+                return
+            }
+        }
+
         if !forceRefresh, collectionStatusByReleaseId[match.releaseId] != nil {
             return
         }
@@ -90,13 +106,9 @@ struct ResultView: View {
                 releaseId: match.releaseId,
                 forceRefresh: forceRefresh
             ) {
-                let tuple = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                try await DiscogsCollectionService.shared.checkCollectionStatus(
                     releaseId: match.releaseId,
                     username: username
-                )
-                return CollectionStatus(
-                    isInCollection: tuple.isInCollection,
-                    isInWantlist: tuple.isInWantlist
                 )
             }
 
@@ -110,6 +122,37 @@ struct ResultView: View {
             // Silently fail for individual status checks - not critical
             print("Failed to check collection status for release \(match.releaseId): \(error)")
         }
+    }
+
+    @MainActor
+    private func localLibraryStatus(for releaseId: Int) -> (status: CollectionStatus, isFresh: Bool)? {
+        let inCollection = (try? libraryCache.containsLocalEntry(
+            releaseId: releaseId,
+            listType: .collection,
+            in: modelContext
+        )) ?? false
+        let inWantlist = (try? libraryCache.containsLocalEntry(
+            releaseId: releaseId,
+            listType: .wantlist,
+            in: modelContext
+        )) ?? false
+
+        let collectionRefresh: Date? = (try? libraryCache.lastRefreshDate(listType: .collection, in: modelContext)) ?? nil
+        let wantlistRefresh: Date? = (try? libraryCache.lastRefreshDate(listType: .wantlist, in: modelContext)) ?? nil
+        let latestRefresh = [collectionRefresh, wantlistRefresh].compactMap { $0 }.max()
+        let isFresh = latestRefresh.map { Date().timeIntervalSince($0) <= libraryFreshInterval } ?? false
+
+        guard inCollection || inWantlist || isFresh else {
+            return nil
+        }
+
+        return (
+            status: CollectionStatus(
+                isInCollection: inCollection,
+                isInWantlist: inWantlist
+            ),
+            isFresh: isFresh
+        )
     }
     
     // MARK: - Offline Indicator

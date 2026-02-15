@@ -447,6 +447,9 @@ extension DiscogsLibraryService {
 
         while true {
             await applyRateLimit()
+            if let url = request.url {
+                PerformanceMetrics.incrementCounter(counterName(for: url))
+            }
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -478,5 +481,16 @@ extension DiscogsLibraryService {
 
     private func applyRateLimit() async {
         await rateLimiter.acquire()
+    }
+
+    private func counterName(for url: URL) -> String {
+        let path = url.path
+        if path.contains("/collection/folders/0/releases") {
+            return "discogs_api_get_collection_pages"
+        }
+        if path.contains("/wants") {
+            return "discogs_api_get_wantlist_pages"
+        }
+        return "discogs_api_get_library_other"
     }
 }

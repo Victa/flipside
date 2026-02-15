@@ -19,6 +19,7 @@ struct DetailView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     private let libraryCache = SwiftDataLibraryCache.shared
+    private let libraryFreshInterval: TimeInterval = 15 * 60
     
     // Collection status loading state
     @State private var isLoadingCollectionStatus = false
@@ -1002,6 +1003,29 @@ struct DetailView: View {
                 }
             }
         }
+
+        if !forceRefresh, let local = localLibraryStatus(releaseId: displayMatch.releaseId) {
+            await MainActor.run {
+                isInCollection = local.status.isInCollection
+                isInWantlist = local.status.isInWantlist
+                updateScanCollectionStatus(
+                    isInCollection: local.status.isInCollection,
+                    isInWantlist: local.status.isInWantlist
+                )
+            }
+
+            if let username = authService.currentUsername, !username.isEmpty {
+                await CollectionStatusStore.shared.updateCachedStatus(
+                    username: username,
+                    releaseId: displayMatch.releaseId,
+                    status: local.status
+                )
+            }
+
+            if local.isFresh {
+                return
+            }
+        }
         
         guard authService.isConnected else {
             await MainActor.run {
@@ -1028,13 +1052,9 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 forceRefresh: forceRefresh
             ) {
-                let remote = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                try await DiscogsCollectionService.shared.checkCollectionStatus(
                     releaseId: displayMatch.releaseId,
                     username: username
-                )
-                return CollectionStatus(
-                    isInCollection: remote.isInCollection,
-                    isInWantlist: remote.isInWantlist
                 )
             }
 
@@ -1096,15 +1116,9 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 status: CollectionStatus(
                     isInCollection: true,
-                    isInWantlist: optimisticWantlist ?? false
+                    isInWantlist: optimisticWantlist ?? false,
+                    collectionInstanceId: nil
                 )
-            )
-
-            verifyAndReconcileStatusInBackground(
-                username: username,
-                action: action,
-                optimisticCollection: true,
-                optimisticWantlist: optimisticWantlist
             )
         } catch {
             await MainActor.run {
@@ -1162,15 +1176,9 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 status: CollectionStatus(
                     isInCollection: false,
-                    isInWantlist: optimisticWantlist ?? false
+                    isInWantlist: optimisticWantlist ?? false,
+                    collectionInstanceId: nil
                 )
-            )
-
-            verifyAndReconcileStatusInBackground(
-                username: username,
-                action: action,
-                optimisticCollection: false,
-                optimisticWantlist: optimisticWantlist
             )
         } catch {
             await MainActor.run {
@@ -1224,15 +1232,9 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 status: CollectionStatus(
                     isInCollection: optimisticCollection ?? false,
-                    isInWantlist: true
+                    isInWantlist: true,
+                    collectionInstanceId: nil
                 )
-            )
-
-            verifyAndReconcileStatusInBackground(
-                username: username,
-                action: action,
-                optimisticCollection: optimisticCollection,
-                optimisticWantlist: true
             )
         } catch {
             await MainActor.run {
@@ -1290,15 +1292,9 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 status: CollectionStatus(
                     isInCollection: optimisticCollection ?? false,
-                    isInWantlist: false
+                    isInWantlist: false,
+                    collectionInstanceId: nil
                 )
-            )
-
-            verifyAndReconcileStatusInBackground(
-                username: username,
-                action: action,
-                optimisticCollection: optimisticCollection,
-                optimisticWantlist: false
             )
         } catch {
             await MainActor.run {
@@ -1322,116 +1318,34 @@ struct DetailView: View {
         }
     }
 
-    private func verifyAndReconcileStatusInBackground(
-        username: String,
-        action: String,
-        optimisticCollection: Bool?,
-        optimisticWantlist: Bool?
-    ) {
-        Task {
-            let verifyStartedAt = Date()
-            do {
-                let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
-                    releaseId: displayMatch.releaseId,
-                    username: username
-                )
-                logDurationMetric(
-                    "library_status_verify_duration_seconds",
-                    action: action,
-                    startedAt: verifyStartedAt
-                )
+    private func localLibraryStatus(releaseId: Int) -> (status: CollectionStatus, isFresh: Bool)? {
+        let inCollection = (try? libraryCache.containsLocalEntry(
+            releaseId: releaseId,
+            listType: .collection,
+            in: modelContext
+        )) ?? false
+        let inWantlist = (try? libraryCache.containsLocalEntry(
+            releaseId: releaseId,
+            listType: .wantlist,
+            in: modelContext
+        )) ?? false
 
-                let mismatchCount = verifiedMismatchCount(
-                    optimisticCollection: optimisticCollection,
-                    optimisticWantlist: optimisticWantlist,
-                    verifiedCollection: status.isInCollection,
-                    verifiedWantlist: status.isInWantlist
-                )
-                print("metric library_status_verify_mismatch_count=\(mismatchCount) action=\(action)")
+        let collectionRefresh: Date? = (try? libraryCache.lastRefreshDate(listType: .collection, in: modelContext)) ?? nil
+        let wantlistRefresh: Date? = (try? libraryCache.lastRefreshDate(listType: .wantlist, in: modelContext)) ?? nil
+        let latestRefresh = [collectionRefresh, wantlistRefresh].compactMap { $0 }.max()
+        let isFresh = latestRefresh.map { Date().timeIntervalSince($0) <= libraryFreshInterval } ?? false
 
-                await CollectionStatusStore.shared.updateCachedStatus(
-                    username: username,
-                    releaseId: displayMatch.releaseId,
-                    status: CollectionStatus(
-                        isInCollection: status.isInCollection,
-                        isInWantlist: status.isInWantlist
-                    )
-                )
-
-                try await MainActor.run {
-                    isInCollection = status.isInCollection
-                    isInWantlist = status.isInWantlist
-                    updateScanCollectionStatus(
-                        isInCollection: status.isInCollection,
-                        isInWantlist: status.isInWantlist
-                    )
-                    try reconcileLocalLibraryCache(
-                        isInCollection: status.isInCollection,
-                        isInWantlist: status.isInWantlist
-                    )
-                }
-            } catch {
-                logDurationMetric(
-                    "library_status_verify_duration_seconds",
-                    action: action,
-                    startedAt: verifyStartedAt
-                )
-                print("Collection status verification failed for action=\(action): \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func reconcileLocalLibraryCache(
-        isInCollection: Bool,
-        isInWantlist: Bool
-    ) throws {
-        if isInCollection {
-            let hasCollectionEntry = try libraryCache.containsLocalEntry(
-                releaseId: displayMatch.releaseId,
-                listType: .collection,
-                in: modelContext
-            )
-            if !hasCollectionEntry {
-                try libraryCache.upsertLocalEntry(from: displayMatch, listType: .collection, in: modelContext)
-            }
-        } else {
-            try libraryCache.removeAllLocalEntries(
-                releaseId: displayMatch.releaseId,
-                listType: .collection,
-                in: modelContext
-            )
+        guard inCollection || inWantlist || isFresh else {
+            return nil
         }
 
-        if isInWantlist {
-            try libraryCache.removeAllLocalEntries(
-                releaseId: displayMatch.releaseId,
-                listType: .wantlist,
-                in: modelContext
-            )
-            try libraryCache.upsertLocalEntry(from: displayMatch, listType: .wantlist, in: modelContext)
-        } else {
-            try libraryCache.removeAllLocalEntries(
-                releaseId: displayMatch.releaseId,
-                listType: .wantlist,
-                in: modelContext
-            )
-        }
-    }
-
-    private func verifiedMismatchCount(
-        optimisticCollection: Bool?,
-        optimisticWantlist: Bool?,
-        verifiedCollection: Bool,
-        verifiedWantlist: Bool
-    ) -> Int {
-        var mismatches = 0
-        if let optimisticCollection, optimisticCollection != verifiedCollection {
-            mismatches += 1
-        }
-        if let optimisticWantlist, optimisticWantlist != verifiedWantlist {
-            mismatches += 1
-        }
-        return mismatches
+        return (
+            status: CollectionStatus(
+                isInCollection: inCollection,
+                isInWantlist: inWantlist
+            ),
+            isFresh: isFresh
+        )
     }
 
     private func logDurationMetric(_ metricName: String, action: String, startedAt: Date) {

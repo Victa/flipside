@@ -43,6 +43,29 @@ class Scan {
     }
 }
 
+@Model
+final class DiscogsReleaseDetailsCacheEntry {
+    var id: UUID
+    var releaseId: Int
+    var payloadData: Data
+    var detailsFetchedAt: Date
+    var priceFetchedAt: Date?
+
+    init(
+        id: UUID = UUID(),
+        releaseId: Int,
+        payloadData: Data,
+        detailsFetchedAt: Date,
+        priceFetchedAt: Date?
+    ) {
+        self.id = id
+        self.releaseId = releaseId
+        self.payloadData = payloadData
+        self.detailsFetchedAt = detailsFetchedAt
+        self.priceFetchedAt = priceFetchedAt
+    }
+}
+
 struct ExtractedData: Codable {
     var artist: String?
     var album: String?

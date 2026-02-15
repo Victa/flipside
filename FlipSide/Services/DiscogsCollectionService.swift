@@ -124,9 +124,9 @@ final class DiscogsCollectionService {
     /// - Parameters:
     ///   - releaseId: The Discogs release ID to check
     ///   - username: The Discogs username
-    /// - Returns: Tuple with collection and wantlist status
+    /// - Returns: Collection and wantlist status with optional collection instance ID
     /// - Throws: CollectionError if check fails
-    func checkCollectionStatus(releaseId: Int, username: String) async throws -> (isInCollection: Bool, isInWantlist: Bool) {
+    func checkCollectionStatus(releaseId: Int, username: String) async throws -> CollectionStatus {
         guard DiscogsAuthService.shared.isConnected else {
             throw CollectionError.notConnected
         }
@@ -139,9 +139,13 @@ final class DiscogsCollectionService {
         async let collectionCheck = isInCollection(releaseId: releaseId, username: username)
         async let wantlistCheck = isInWantlist(releaseId: releaseId, username: username)
         
-        let (inCollection, inWantlist) = try await (collectionCheck, wantlistCheck)
-        
-        return (isInCollection: inCollection, isInWantlist: inWantlist)
+        let (collectionLookup, inWantlist) = try await (collectionCheck, wantlistCheck)
+
+        return CollectionStatus(
+            isInCollection: collectionLookup.isInCollection,
+            isInWantlist: inWantlist,
+            collectionInstanceId: collectionLookup.instanceId
+        )
     }
     
     /// Add a release to the user's collection
@@ -171,6 +175,7 @@ final class DiscogsCollectionService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_post_collection_add")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -191,8 +196,22 @@ final class DiscogsCollectionService {
             throw CollectionError.noUsername
         }
         
-        // First, get the instance ID
-        guard let instanceId = try await getCollectionInstanceId(releaseId: releaseId, username: username) else {
+        let cachedStatus = await CollectionStatusStore.shared.cachedStatus(
+            username: username,
+            releaseId: releaseId
+        )
+        let knownInstanceId = cachedStatus?.collectionInstanceId
+        let instanceId: Int?
+        if let knownInstanceId {
+            instanceId = knownInstanceId
+        } else {
+            instanceId = try await getCollectionInstanceId(
+                releaseId: releaseId,
+                username: username
+            )
+        }
+
+        guard let instanceId else {
             throw CollectionError.notFound
         }
         
@@ -208,6 +227,7 @@ final class DiscogsCollectionService {
         request.httpMethod = "DELETE"
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_delete_collection_remove")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -240,6 +260,7 @@ final class DiscogsCollectionService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_put_wantlist_add")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -271,6 +292,7 @@ final class DiscogsCollectionService {
         request.httpMethod = "DELETE"
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_delete_wantlist_remove")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -280,7 +302,12 @@ final class DiscogsCollectionService {
     // MARK: - Private Methods
     
     /// Check if release is in user's collection using per-release endpoint
-    private func isInCollection(releaseId: Int, username: String) async throws -> Bool {
+    private struct CollectionLookup {
+        let isInCollection: Bool
+        let instanceId: Int?
+    }
+
+    private func isInCollection(releaseId: Int, username: String) async throws -> CollectionLookup {
         // Apply rate limiting
         await applyRateLimit()
         
@@ -293,6 +320,7 @@ final class DiscogsCollectionService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_collection_release_status")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -300,7 +328,7 @@ final class DiscogsCollectionService {
         
         // 404 means release is not in collection
         if httpCode == 404 {
-            return false
+            return CollectionLookup(isInCollection: false, instanceId: nil)
         }
         
         try validateHTTPResponse(response)
@@ -310,7 +338,10 @@ final class DiscogsCollectionService {
         do {
             let collectionResponse = try decoder.decode(CollectionResponse.self, from: data)
             let hasReleases = collectionResponse.releases != nil && !collectionResponse.releases!.isEmpty
-            return hasReleases
+            return CollectionLookup(
+                isInCollection: hasReleases,
+                instanceId: collectionResponse.releases?.first?.instanceId
+            )
         } catch {
             throw CollectionError.parsingError("Failed to decode collection response: \(error.localizedDescription)")
         }
@@ -330,6 +361,7 @@ final class DiscogsCollectionService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_wantlist_release_status")
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
@@ -360,6 +392,7 @@ final class DiscogsCollectionService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_collection_release_instance")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
