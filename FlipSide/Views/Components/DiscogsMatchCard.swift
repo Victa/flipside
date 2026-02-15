@@ -28,31 +28,15 @@ struct DiscogsMatchCard: View {
                 
                 Spacer()
                 
-                // Collection status icons
-                HStack(spacing: 6) {
-                    if let status = collectionStatus {
-                        if status.isInCollection == true {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-                        if status.isInWantlist == true {
-                            Image(systemName: "heart.fill")
-                                .font(.caption)
-                                .foregroundStyle(.pink)
-                        }
-                    }
-                    
-                    // Confidence score
-                    HStack(spacing: 4) {
-                        Image(systemName: confidenceIcon)
-                            .font(.caption)
-                        Text(confidenceText)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundStyle(confidenceColor)
+                // Confidence score
+                HStack(spacing: 4) {
+                    Image(systemName: confidenceIcon)
+                        .font(.caption)
+                    Text(confidenceText)
+                        .font(.caption)
+                        .fontWeight(.semibold)
                 }
+                .foregroundStyle(confidenceColor)
             }
             
             // Album cover image
@@ -132,6 +116,35 @@ struct DiscogsMatchCard: View {
                     }
                 }
                 
+                // Collection status labels
+                if let status = collectionStatus {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if status.isInCollection == true {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                                Text("In your Collection")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        if status.isInWantlist == true {
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.pink)
+                                Text("In Your Wantlist")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.pink)
+                            }
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                
                 // Genres
                 if !match.genres.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -203,18 +216,40 @@ struct DiscogsMatchCard: View {
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 16) {
-        DiscogsMatchCard(
-            match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
-            rank: 1
-        )
-        .padding()
-        
-        DiscogsMatchCard(
-            match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
-            rank: 2
-        )
-        .padding()
+    ScrollView {
+        VStack(spacing: 16) {
+            // Card with both collection and wantlist status
+            DiscogsMatchCard(
+                match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
+                rank: 1,
+                collectionStatus: (isInCollection: true, isInWantlist: true)
+            )
+            .padding()
+            
+            // Card with only collection status
+            DiscogsMatchCard(
+                match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
+                rank: 2,
+                collectionStatus: (isInCollection: true, isInWantlist: false)
+            )
+            .padding()
+            
+            // Card with only wantlist status
+            DiscogsMatchCard(
+                match: .sample(releaseId: 123458, title: "Blue Train", artist: "John Coltrane", year: 1957, matchScore: 0.88),
+                rank: 3,
+                collectionStatus: (isInCollection: false, isInWantlist: true)
+            )
+            .padding()
+            
+            // Card with no collection status
+            DiscogsMatchCard(
+                match: .sample(releaseId: 123459, title: "A Love Supreme", artist: "John Coltrane", year: 1965, matchScore: 0.75),
+                rank: 4,
+                collectionStatus: nil
+            )
+            .padding()
+        }
     }
     .background(Color(.systemGroupedBackground))
 }

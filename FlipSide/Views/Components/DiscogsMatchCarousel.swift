@@ -9,7 +9,7 @@ import SwiftUI
 
 struct DiscogsMatchCarousel: View {
     let matches: [DiscogsMatch]
-    var collectionStatus: (isInCollection: Bool?, isInWantlist: Bool?)? = nil
+    var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     var body: some View {
@@ -19,7 +19,7 @@ struct DiscogsMatchCarousel: View {
                     DiscogsMatchCard(
                         match: match,
                         rank: index + 1,
-                        collectionStatus: collectionStatus
+                        collectionStatus: collectionStatusByReleaseId[match.releaseId]
                     )
                     .frame(width: 280)
                     .contentShape(Rectangle())

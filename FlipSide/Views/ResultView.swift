@@ -19,8 +19,9 @@ struct ResultView: View {
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.modelContext) private var modelContext
     
-    // Collection status state
-    @State private var collectionStatus: (isInCollection: Bool?, isInWantlist: Bool?)? = nil
+    // Collection status state per release ID
+    @State private var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
+    @State private var isLoadingCollectionStatus = false
     
     var body: some View {
         ScrollView {
@@ -38,24 +39,48 @@ struct ResultView: View {
         .navigationTitle("Select Match")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await loadCollectionStatus()
+            await loadCollectionStatusForMatches()
         }
     }
     
     // MARK: - Collection Status Loading
     
-    private func loadCollectionStatus() async {
-        // Load collection status from scan if available
-        guard let scanId = scanId else { return }
+    private func loadCollectionStatusForMatches() async {
+        // Skip if no matches or offline
+        guard !discogsMatches.isEmpty, networkMonitor.isConnected else { return }
         
-        let fetchDescriptor = FetchDescriptor<Scan>(
-            predicate: #Predicate { $0.id == scanId }
-        )
+        // Check if username is configured
+        guard let username = KeychainService.shared.discogsUsername, !username.isEmpty else { return }
         
-        if let scan = try? modelContext.fetch(fetchDescriptor).first {
-            await MainActor.run {
-                collectionStatus = (isInCollection: scan.isInCollection, isInWantlist: scan.isInWantlist)
+        // Check if token is configured
+        guard KeychainService.shared.discogsPersonalToken != nil else { return }
+        
+        await MainActor.run {
+            isLoadingCollectionStatus = true
+        }
+        
+        // Check status for each match (up to 5 shown in carousel)
+        for match in discogsMatches.prefix(5) {
+            do {
+                let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                    releaseId: match.releaseId,
+                    username: username
+                )
+                
+                await MainActor.run {
+                    collectionStatusByReleaseId[match.releaseId] = (
+                        isInCollection: status.isInCollection,
+                        isInWantlist: status.isInWantlist
+                    )
+                }
+            } catch {
+                // Silently fail for individual status checks - not critical
+                print("Failed to check collection status for release \(match.releaseId): \(error)")
             }
+        }
+        
+        await MainActor.run {
+            isLoadingCollectionStatus = false
         }
     }
     
@@ -104,7 +129,7 @@ struct ResultView: View {
                     
                     DiscogsMatchCarousel(
                         matches: Array(discogsMatches.prefix(5)),
-                        collectionStatus: collectionStatus,
+                        collectionStatusByReleaseId: collectionStatusByReleaseId,
                         onMatchSelected: { match, index in
                             onMatchSelected(match, index)
                         }
