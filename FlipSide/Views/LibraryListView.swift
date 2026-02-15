@@ -75,14 +75,18 @@ struct LibraryListView: View {
                             .padding(.horizontal)
                             .padding(.top, 8)
                     } else if state.isBackgroundRefreshing {
-                        Text(backgroundSyncBannerText)
-                            .font(.caption)
-                            .padding(8)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue.opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .padding(.horizontal)
-                            .padding(.top, 8)
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(backgroundSyncBannerText)
+                                .font(.caption)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.blue.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.horizontal)
+                        .padding(.top, 8)
                     } else if let errorMessage = state.errorMessage {
                         Text(errorMessage)
                             .font(.caption)

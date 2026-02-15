@@ -32,7 +32,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
     private let libraryService = DiscogsLibraryService.shared
     private let cache = SwiftDataLibraryCache.shared
 
-    private var activeSyncSessionId: UUID?
+    private var activeSyncSessionIds: [LibraryListType: UUID] = [:]
+    private var inFlightRefreshTasks: [LibraryListType: Task<Result<Void, Error>, Never>] = [:]
 
     private init() {}
 
@@ -73,15 +74,44 @@ final class DiscogsLibraryViewModel: ObservableObject {
     }
 
     func refresh(listType: LibraryListType, modelContext: ModelContext) async -> Result<Void, Error> {
+        if let inFlight = inFlightRefreshTasks[listType] {
+            return await inFlight.value
+        }
+
+        let refreshTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else {
+                return Result<Void, Error>.failure(CancellationError())
+            }
+            return await self.executeRefresh(listType: listType, modelContext: modelContext)
+        }
+
+        inFlightRefreshTasks[listType] = refreshTask
+        return await refreshTask.value
+    }
+
+    private func executeRefresh(
+        listType: LibraryListType,
+        modelContext: ModelContext
+    ) async -> Result<Void, Error> {
+        defer {
+            inFlightRefreshTasks[listType] = nil
+        }
+
         if incrementalLibrarySyncEnabled {
             let sessionId = UUID()
-            activeSyncSessionId = sessionId
-            return await refreshIncremental(
+            activeSyncSessionIds[listType] = sessionId
+            let result = await refreshIncremental(
                 listType: listType,
                 modelContext: modelContext,
                 sessionId: sessionId,
                 onFirstPage: {}
             )
+
+            if activeSyncSessionIds[listType] == sessionId {
+                activeSyncSessionIds[listType] = nil
+            }
+
+            return result
         }
 
         guard DiscogsAuthService.shared.isConnected else {
@@ -181,7 +211,7 @@ final class DiscogsLibraryViewModel: ObservableObject {
 
         do {
             let summary = try await libraryService.syncListPaged(listType: listType, username: username) { items, chunk in
-                guard self.isSessionActive(sessionId) else {
+                guard self.isSessionActive(sessionId, for: listType) else {
                     throw CancellationError()
                 }
 
@@ -209,7 +239,7 @@ final class DiscogsLibraryViewModel: ObservableObject {
                 }
             }
 
-            guard isSessionActive(sessionId) else {
+            guard isSessionActive(sessionId, for: listType) else {
                 throw CancellationError()
             }
 
@@ -231,6 +261,10 @@ final class DiscogsLibraryViewModel: ObservableObject {
             return .success(())
         } catch is CancellationError {
             cache.failIncrementalSync(listType: listType, syncId: sessionId, in: modelContext)
+            updateState(listType: listType) { state in
+                state.isRefreshing = false
+                state.isBackgroundRefreshing = false
+            }
             return .failure(CancellationError())
         } catch {
             cache.failIncrementalSync(listType: listType, syncId: sessionId, in: modelContext)
@@ -250,7 +284,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
         let fullSyncInterval = PerformanceMetrics.begin(.incrementalSyncFull)
         let firstPageInterval = PerformanceMetrics.begin(.incrementalSyncFirstPage)
         let sessionId = UUID()
-        activeSyncSessionId = sessionId
+        activeSyncSessionIds[.collection] = sessionId
+        activeSyncSessionIds[.wantlist] = sessionId
 
         let syncStart = Date()
         var firstCollectionPageDate: Date?
@@ -308,8 +343,11 @@ final class DiscogsLibraryViewModel: ObservableObject {
         let collection = await collectionResult
         let wantlist = await wantlistResult
 
-        if activeSyncSessionId == sessionId {
-            activeSyncSessionId = nil
+        if activeSyncSessionIds[.collection] == sessionId {
+            activeSyncSessionIds[.collection] = nil
+        }
+        if activeSyncSessionIds[.wantlist] == sessionId {
+            activeSyncSessionIds[.wantlist] = nil
         }
 
         if !initialGateSent {
@@ -373,7 +411,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
     }
 
     func resetLibraryState() {
-        activeSyncSessionId = nil
+        activeSyncSessionIds.removeAll()
+        inFlightRefreshTasks.removeAll()
         collectionState = ListState()
         wantlistState = ListState()
     }
@@ -401,8 +440,8 @@ final class DiscogsLibraryViewModel: ObservableObject {
         }
     }
 
-    private func isSessionActive(_ sessionId: UUID) -> Bool {
-        activeSyncSessionId == sessionId
+    private func isSessionActive(_ sessionId: UUID, for listType: LibraryListType) -> Bool {
+        activeSyncSessionIds[listType] == sessionId
     }
 
     private func updateState(listType: LibraryListType, mutate: (inout ListState) -> Void) {
