@@ -22,6 +22,7 @@ final class DiscogsLibraryService {
     private let userAgent = "FlipSideApp/1.0"
 
     enum LibraryServiceError: LocalizedError {
+        case notConnected
         case missingUsername
         case invalidURL
         case invalidResponse
@@ -29,8 +30,10 @@ final class DiscogsLibraryService {
 
         var errorDescription: String? {
             switch self {
+            case .notConnected:
+                return "Discogs account is not connected. Connect in Settings."
             case .missingUsername:
-                return "Discogs username is required. Add it in Settings."
+                return "Discogs username is unavailable. Reconnect your Discogs account in Settings."
             case .invalidURL:
                 return "Failed to build Discogs API URL."
             case .invalidResponse:
@@ -100,6 +103,10 @@ final class DiscogsLibraryService {
     }
 
     private func request<T: Decodable>(endpoint: String, page: Int) async throws -> T {
+        guard DiscogsAuthService.shared.isConnected else {
+            throw LibraryServiceError.notConnected
+        }
+
         var components = URLComponents(string: "\(baseURL)\(endpoint)")
         components?.queryItems = [
             URLQueryItem(name: "page", value: String(page)),
@@ -113,11 +120,7 @@ final class DiscogsLibraryService {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-
-        if let token = KeychainService.shared.discogsPersonalToken,
-           !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
-        }
+        try DiscogsAuthService.shared.authorizeRequest(&request)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -126,6 +129,10 @@ final class DiscogsLibraryService {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                try? DiscogsAuthService.shared.disconnect()
+                throw LibraryServiceError.notConnected
+            }
             let message = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
         }
@@ -380,6 +387,10 @@ extension DiscogsLibraryService {
     }
 
     private func fetchReleaseMetadata(releaseId: Int) async throws -> ReleaseMetadataResponse {
+        guard DiscogsAuthService.shared.isConnected else {
+            throw LibraryServiceError.notConnected
+        }
+
         guard let url = URL(string: "\(baseURL)/releases/\(releaseId)") else {
             throw LibraryServiceError.invalidURL
         }
@@ -387,11 +398,7 @@ extension DiscogsLibraryService {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-
-        if let token = KeychainService.shared.discogsPersonalToken,
-           !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            request.setValue("Discogs token=\(token)", forHTTPHeaderField: "Authorization")
-        }
+        try DiscogsAuthService.shared.authorizeRequest(&request)
 
         for attempt in 0..<2 {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -406,6 +413,10 @@ extension DiscogsLibraryService {
             }
 
             guard (200...299).contains(httpResponse.statusCode) else {
+                if httpResponse.statusCode == 401 {
+                    try? DiscogsAuthService.shared.disconnect()
+                    throw LibraryServiceError.notConnected
+                }
                 let message = String(data: data, encoding: .utf8) ?? "Unknown error"
                 throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
             }

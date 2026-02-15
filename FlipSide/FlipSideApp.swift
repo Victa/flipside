@@ -15,6 +15,11 @@ struct FlipSideApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    Task {
+                        try? await DiscogsAuthService.shared.handleCallback(url: url)
+                    }
+                }
         }
         .modelContainer(for: [Scan.self, LibraryEntry.self, LibrarySyncState.self])
     }

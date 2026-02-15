@@ -257,7 +257,7 @@ struct AppRootTabView: View {
             var discogsMatches: [DiscogsMatch] = []
             var discogsError: String?
 
-            if KeychainService.shared.discogsPersonalToken != nil {
+            if DiscogsAuthService.shared.isConnected {
                 do {
                     discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
                 } catch {
@@ -265,7 +265,7 @@ struct AppRootTabView: View {
                     print("Discogs search failed: \(error.localizedDescription)")
                 }
             } else {
-                discogsError = "Discogs personal access token not configured. Add it in Settings to search for matches."
+                discogsError = "Discogs account not connected. Connect your account in Settings to search for matches."
             }
 
             await MainActor.run {

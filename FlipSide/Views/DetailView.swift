@@ -14,6 +14,7 @@ struct DetailView: View {
     let onDone: () -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var authService = DiscogsAuthService.shared
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     
@@ -890,7 +891,7 @@ struct DetailView: View {
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
                     
-                    if error.contains("username") || error.contains("token") {
+                    if error.contains("username") || error.contains("connect") || error.contains("OAuth") {
                         Button("Go to Settings") {
                             // Open settings (would need to pass a binding or closure)
                         }
@@ -1047,16 +1048,16 @@ struct DetailView: View {
             }
         }
         
-        guard let username = KeychainService.shared.discogsUsername, !username.isEmpty else {
+        guard authService.isConnected else {
             await MainActor.run {
-                collectionError = "Discogs username not configured. Please add your username in Settings."
+                collectionError = "Discogs account not connected. Please connect in Settings."
             }
             return
         }
         
-        guard KeychainService.shared.discogsPersonalToken != nil else {
+        guard let username = authService.currentUsername, !username.isEmpty else {
             await MainActor.run {
-                collectionError = "Discogs personal access token not configured. Please add your token in Settings."
+                collectionError = "Discogs username unavailable. Please reconnect in Settings."
             }
             return
         }
@@ -1089,7 +1090,7 @@ struct DetailView: View {
     }
     
     private func addToCollection() async {
-        guard let username = KeychainService.shared.discogsUsername else { return }
+        guard let username = authService.currentUsername else { return }
         
         await MainActor.run {
             isAddingToCollection = true
@@ -1117,7 +1118,7 @@ struct DetailView: View {
     }
     
     private func removeFromCollection() async {
-        guard let username = KeychainService.shared.discogsUsername else { return }
+        guard let username = authService.currentUsername else { return }
         
         await MainActor.run {
             isRemovingFromCollection = true
@@ -1145,7 +1146,7 @@ struct DetailView: View {
     }
     
     private func addToWantlist() async {
-        guard let username = KeychainService.shared.discogsUsername else { return }
+        guard let username = authService.currentUsername else { return }
         
         await MainActor.run {
             isAddingToWantlist = true
@@ -1173,7 +1174,7 @@ struct DetailView: View {
     }
     
     private func removeFromWantlist() async {
-        guard let username = KeychainService.shared.discogsUsername else { return }
+        guard let username = authService.currentUsername else { return }
         
         await MainActor.run {
             isRemovingFromWantlist = true

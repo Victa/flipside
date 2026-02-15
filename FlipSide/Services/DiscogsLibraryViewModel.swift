@@ -59,7 +59,16 @@ final class DiscogsLibraryViewModel: ObservableObject {
     }
 
     func refresh(listType: LibraryListType, modelContext: ModelContext) async -> Result<Void, Error> {
-        let username = KeychainService.shared.discogsUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard DiscogsAuthService.shared.isConnected else {
+            let error = DiscogsLibraryService.LibraryServiceError.notConnected
+            updateState(listType: listType) { state in
+                state.errorMessage = error.localizedDescription
+                state.isRefreshing = false
+            }
+            return .failure(error)
+        }
+
+        let username = DiscogsAuthService.shared.connectedUsername() ?? ""
         guard !username.isEmpty else {
             let error = DiscogsLibraryService.LibraryServiceError.missingUsername
             updateState(listType: listType) { state in

@@ -5,6 +5,7 @@ struct LibraryListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var entries: [LibraryEntry]
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var authService = DiscogsAuthService.shared
 
     @ObservedObject var viewModel: DiscogsLibraryViewModel
     let listType: LibraryListType
@@ -35,9 +36,8 @@ struct LibraryListView: View {
         viewModel.state(for: listType)
     }
 
-    private var usernameConfigured: Bool {
-        let username = KeychainService.shared.discogsUsername?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !(username ?? "").isEmpty
+    private var accountConnected: Bool {
+        authService.isConnected && (authService.currentUsername?.isEmpty == false)
     }
 
     var body: some View {
@@ -123,8 +123,8 @@ struct LibraryListView: View {
     }
 
     private var emptyTitle: String {
-        if !usernameConfigured {
-            return "Add your Discogs username"
+        if !accountConnected {
+            return "Connect your Discogs account"
         }
 
         switch listType {
@@ -136,8 +136,8 @@ struct LibraryListView: View {
     }
 
     private var emptyMessage: String {
-        if !usernameConfigured {
-            return "Open Settings to save your Discogs username, then run Refresh Collection/Wantlist."
+        if !accountConnected {
+            return "Open Settings and connect Discogs, then run Refresh Collection/Wantlist."
         }
 
         if !networkMonitor.isConnected {
