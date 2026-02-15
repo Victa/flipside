@@ -20,6 +20,10 @@ final class DiscogsLibraryService {
 
     private let baseURL = "https://api.discogs.com"
     private let userAgent = "FlipSideApp/1.0"
+    private let rateLimitDelay: TimeInterval = 1.1
+    private let max429Retries = 3
+    private var lastRequestTime: Date?
+    private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.library.ratelimit")
 
     enum LibraryServiceError: LocalizedError {
         case notConnected
@@ -122,19 +126,14 @@ final class DiscogsLibraryService {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         try DiscogsAuthService.shared.authorizeRequest(&request)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await performRequestWithRetry(request)
+        } catch let error as LibraryServiceError {
+            throw error
+        } catch {
             throw LibraryServiceError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 401 {
-                try? DiscogsAuthService.shared.disconnect()
-                throw LibraryServiceError.notConnected
-            }
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
         }
 
         do {
@@ -400,31 +399,61 @@ extension DiscogsLibraryService {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         try DiscogsAuthService.shared.authorizeRequest(&request)
 
-        for attempt in 0..<2 {
+        let (data, _) = try await performRequestWithRetry(request)
+        let decoder = JSONDecoder()
+        return try decoder.decode(ReleaseMetadataResponse.self, from: data)
+    }
+
+    private func performRequestWithRetry(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        var attempt = 0
+        var backoff: UInt64 = 1_000_000_000
+
+        while true {
+            await applyRateLimit()
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw LibraryServiceError.invalidResponse
             }
 
-            if httpResponse.statusCode == 429, attempt == 0 {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if (200...299).contains(httpResponse.statusCode) {
+                return (data, response)
+            }
+
+            if httpResponse.statusCode == 401 {
+                try? DiscogsAuthService.shared.disconnect()
+                throw LibraryServiceError.notConnected
+            }
+
+            if httpResponse.statusCode == 429, attempt < max429Retries {
+                let retryAfterSeconds: UInt64
+                if let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After"),
+                   let seconds = UInt64(retryAfter) {
+                    retryAfterSeconds = seconds * 1_000_000_000
+                } else {
+                    retryAfterSeconds = backoff
+                }
+                try await Task.sleep(nanoseconds: retryAfterSeconds)
+                backoff *= 2
+                attempt += 1
                 continue
             }
 
-            guard (200...299).contains(httpResponse.statusCode) else {
-                if httpResponse.statusCode == 401 {
-                    try? DiscogsAuthService.shared.disconnect()
-                    throw LibraryServiceError.notConnected
-                }
-                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-                throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
-            }
-
-            let decoder = JSONDecoder()
-            return try decoder.decode(ReleaseMetadataResponse.self, from: data)
+            let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = (body?.isEmpty == false) ? body! : "Request failed. Please try again in a moment."
+            throw LibraryServiceError.requestFailed(httpResponse.statusCode, message)
         }
+    }
 
-        throw LibraryServiceError.invalidResponse
+    private func applyRateLimit() async {
+        rateLimitQueue.sync {
+            if let lastRequest = lastRequestTime {
+                let elapsed = Date().timeIntervalSince(lastRequest)
+                if elapsed < rateLimitDelay {
+                    Thread.sleep(forTimeInterval: rateLimitDelay - elapsed)
+                }
+            }
+            lastRequestTime = Date()
+        }
     }
 }
