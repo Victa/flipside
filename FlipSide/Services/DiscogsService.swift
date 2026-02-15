@@ -270,7 +270,7 @@ final class DiscogsService {
         }
         
         // Convert search results to DiscogsMatch with scoring
-        let matches = searchResults.compactMap { result -> DiscogsMatch? in
+        var matches = searchResults.compactMap { result -> (match: DiscogsMatch, catalogSimilarity: Double)? in
             guard result.type == "release" || result.type == "master" else {
                 return nil
             }
@@ -280,7 +280,14 @@ final class DiscogsService {
                 extractedData: extractedData
             )
             
-            return DiscogsMatch(
+            // Calculate catalog number similarity separately for filtering
+            var catalogSimilarity: Double = 0.0
+            if let extractedCatno = extractedData.catalogNumber,
+               let resultCatno = result.catno {
+                catalogSimilarity = stringSimilarity(extractedCatno, resultCatno)
+            }
+            
+            let match = DiscogsMatch(
                 // Basic info
                 releaseId: result.id,
                 title: result.title,
@@ -325,13 +332,34 @@ final class DiscogsService {
                 resourceUrl: nil,
                 videos: []
             )
+            
+            return (match: match, catalogSimilarity: catalogSimilarity)
         }
         
-        // Sort by match score (highest first) and return top results
+        // Sort by match score (highest first)
+        matches.sort { $0.match.matchScore > $1.match.matchScore }
+        
+        // INTELLIGENT FILTERING: If we have strong catalog number matches, ONLY return those
+        // Catalog numbers are unique identifiers - if we found exact matches, ignore everything else
+        let hasCatalogNumber = extractedData.catalogNumber != nil && !extractedData.catalogNumber!.isEmpty
+        
+        if hasCatalogNumber {
+            // Check if we have any high-confidence catalog matches
+            let strongCatalogMatches = matches.filter { $0.catalogSimilarity >= 0.85 }
+            
+            if !strongCatalogMatches.isEmpty {
+                // We found catalog number matches! Only return these, ignore lower-confidence results
+                // This prevents showing unrelated records when we've found the exact pressing
+                return strongCatalogMatches
+                    .prefix(5)  // Still cap at 5 in case there are multiple pressings with same catno
+                    .map { $0.match }
+            }
+        }
+        
+        // No strong catalog matches found, return top results by overall score
         return matches
-            .sorted { $0.matchScore > $1.matchScore }
             .prefix(5)
-            .map { $0 }
+            .map { $0.match }
     }
     
     /// Fetch detailed release information including pricing
