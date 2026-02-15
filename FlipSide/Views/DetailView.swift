@@ -1169,13 +1169,13 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInCollection = true
                 isAddingToCollection = false
                 updateScanCollectionStatus(isInCollection: true, isInWantlist: isInWantlist)
             }
+            refreshLibraryListsFromDiscogsInBackground()
         } catch {
             await MainActor.run {
                 isAddingToCollection = false
@@ -1197,13 +1197,13 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInCollection = false
                 isRemovingFromCollection = false
                 updateScanCollectionStatus(isInCollection: false, isInWantlist: isInWantlist)
             }
+            refreshLibraryListsFromDiscogsInBackground()
         } catch {
             await MainActor.run {
                 isRemovingFromCollection = false
@@ -1225,13 +1225,13 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInWantlist = true
                 isAddingToWantlist = false
                 updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: true)
             }
+            refreshLibraryListsFromDiscogsInBackground()
         } catch {
             await MainActor.run {
                 isAddingToWantlist = false
@@ -1253,13 +1253,13 @@ struct DetailView: View {
                 releaseId: displayMatch.releaseId,
                 username: username
             )
-            await refreshLibraryListsFromDiscogs()
             
             await MainActor.run {
                 isInWantlist = false
                 isRemovingFromWantlist = false
                 updateScanCollectionStatus(isInCollection: isInCollection, isInWantlist: false)
             }
+            refreshLibraryListsFromDiscogsInBackground()
         } catch {
             await MainActor.run {
                 isRemovingFromWantlist = false
@@ -1282,8 +1282,10 @@ struct DetailView: View {
         }
     }
 
-    private func refreshLibraryListsFromDiscogs() async {
-        _ = await DiscogsLibraryViewModel.shared.refreshAll(modelContext: modelContext)
+    private func refreshLibraryListsFromDiscogsInBackground() {
+        Task { @MainActor in
+            _ = await DiscogsLibraryViewModel.shared.refreshAll(modelContext: modelContext)
+        }
     }
     
     // MARK: - Helper Methods
