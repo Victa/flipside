@@ -13,13 +13,7 @@ final class DiscogsCollectionService {
     // MARK: - Configuration
     
     private let baseURL = "https://api.discogs.com"
-    private let maxRetries = 3
-    private let retryDelay: TimeInterval = 1.0
-    
-    // Rate limiting (reuse from DiscogsService pattern)
-    private let rateLimitDelay: TimeInterval = 0.2 // 60 requests/minute
-    private var lastRequestTime: Date?
-    private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.collection.ratelimit")
+    private let rateLimiter = DiscogsRateLimiter.shared
     
     // MARK: - Error Types
     
@@ -389,16 +383,7 @@ final class DiscogsCollectionService {
     
     /// Apply rate limiting by waiting if necessary
     private func applyRateLimit() async {
-        rateLimitQueue.sync {
-            if let lastRequest = lastRequestTime {
-                let timeSinceLastRequest = Date().timeIntervalSince(lastRequest)
-                if timeSinceLastRequest < rateLimitDelay {
-                    let waitTime = rateLimitDelay - timeSinceLastRequest
-                    Thread.sleep(forTimeInterval: waitTime)
-                }
-            }
-            lastRequestTime = Date()
-        }
+        await rateLimiter.acquire()
     }
     
     /// Validate HTTP response status code

@@ -8,7 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		0063BD5382F3078CFBF4B7A7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 369F06060C9C3910E329F9D6 /* SettingsView.swift */; };
+		0678602ED8736B3ABA283ACA /* CollectionStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15CE853EFFCC50C1C7393183 /* CollectionStatusStore.swift */; };
 		093B30395BF65F6379720DE8 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 299C2E93F0986ED708B050C5 /* CachedAsyncImage.swift */; };
+		0E2E9A83F126A9E66DB23544 /* PerformanceBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1467018963556ED15DF0EA00 /* PerformanceBudgetTests.swift */; };
 		1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */; };
 		1166C440D137F07E879FA2BB /* OnboardingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4155E38E920450D212F90C8B /* OnboardingFlowView.swift */; };
 		119A0914CD615C9E257C16BF /* DiscogsAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049BECCA03245E1C9D2B7D8C /* DiscogsAuthService.swift */; };
@@ -21,6 +23,7 @@
 		34BD86082ABF7992AEB7DE2C /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BDF0856DA2E3DFDB893F653 /* VisionService.swift */; };
 		38F77FC47EA68CA23E4F8F94 /* MyCollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C743E8B6BBE0AC10CCA59602 /* MyCollectionView.swift */; };
 		470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */; };
+		584072F24A3C1928D8D7A8EA /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400C1A8E93C1E3BCD3178047 /* DetailViewModel.swift */; };
 		60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */; };
 		6627D22DED92569406F0F8F8 /* DiscogsSecrets.xcconfig.example in Resources */ = {isa = PBXBuildFile; fileRef = 0897CB13D157709A3715EC28 /* DiscogsSecrets.xcconfig.example */; };
 		69A5B1FC74CC46CAE7F12AD3 /* DiscogsCollectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3DD15F4CBC61B88B0FC392 /* DiscogsCollectionService.swift */; };
@@ -28,33 +31,53 @@
 		81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C713B19E709576052C4C831F /* FlipSideApp.swift */; };
 		83E55396995E052B7D63BD33 /* LibraryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E488ECD9838D0ABB7F4A33D /* LibraryEntry.swift */; };
 		84FA0A8493641F8EB680A2CE /* PhotoLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */; };
+		84FFF9A8F229B62C6388E837 /* CollectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B7AB3BA4329E40425FB3AA9 /* CollectionStatus.swift */; };
 		86AC39FAD1914573A51A2F78 /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35862C30A935DEC9412C2DF2 /* Scan.swift */; };
 		8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EE614C3E5F086A9286403F5 /* DiscogsMatchCarousel.swift */; };
 		A4B86DB718E1833CF130AE61 /* MyWantlistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B4FD673887E0294EC64112 /* MyWantlistView.swift */; };
 		A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */; };
 		AD826A6D37AF3E3C35B2CFB0 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */; };
 		B56D3B542306148D0EE641E1 /* DiscogsLibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */; };
+		B99A4654F8C6705E7DFD8635 /* DiscogsRateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F0F029E999CCD3D82BA1294 /* DiscogsRateLimiter.swift */; };
 		BA0BF7913856EC44C34DE9CF /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABD410546466CB976DF177F /* ResultView.swift */; };
 		D5954FF74D4D36856E342BEC /* DiscogsOAuthSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2BE0076F5FBD08FF0DB0AF /* DiscogsOAuthSigner.swift */; };
 		DAD35DB0C043D19ADE4E7D1E /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F710380C860B44B2210F50C /* ProcessingView.swift */; };
+		EED7BC1114602C169E5AAE88 /* AppPerformanceBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A926EF968B57D332CF89A88 /* AppPerformanceBudget.swift */; };
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F8C85AD781E279D63FE60D32 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D36EFDD00C50C27F099FAF6D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F7623E7042B22F5ED35619A4;
+			remoteInfo = FlipSide;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		049BECCA03245E1C9D2B7D8C /* DiscogsAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsAuthService.swift; sourceTree = "<group>"; };
 		0897CB13D157709A3715EC28 /* DiscogsSecrets.xcconfig.example */ = {isa = PBXFileReference; path = DiscogsSecrets.xcconfig.example; sourceTree = "<group>"; };
 		0C63E78F83F1BF3644DEF914 /* LibraryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryListView.swift; sourceTree = "<group>"; };
 		0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsService.swift; sourceTree = "<group>"; };
+		1467018963556ED15DF0EA00 /* PerformanceBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBudgetTests.swift; sourceTree = "<group>"; };
+		15CE853EFFCC50C1C7393183 /* CollectionStatusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionStatusStore.swift; sourceTree = "<group>"; };
 		1ABD410546466CB976DF177F /* ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultView.swift; sourceTree = "<group>"; };
+		1B7AB3BA4329E40425FB3AA9 /* CollectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionStatus.swift; sourceTree = "<group>"; };
 		1E488ECD9838D0ABB7F4A33D /* LibraryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryEntry.swift; sourceTree = "<group>"; };
 		299C2E93F0986ED708B050C5 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
+		2A926EF968B57D332CF89A88 /* AppPerformanceBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPerformanceBudget.swift; sourceTree = "<group>"; };
 		3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 		35862C30A935DEC9412C2DF2 /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
 		369F06060C9C3910E329F9D6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		381C45531F49D9710B80692F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F710380C860B44B2210F50C /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
+		400C1A8E93C1E3BCD3178047 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
 		4155E38E920450D212F90C8B /* OnboardingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowView.swift; sourceTree = "<group>"; };
+		4E14B5AE4E40A3D07BFA6F6E /* FlipSideTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlipSideTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
+		5F0F029E999CCD3D82BA1294 /* DiscogsRateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsRateLimiter.swift; sourceTree = "<group>"; };
 		629D838ADABC3D1EB29ACA6A /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		6EB381F6B8C3C40FCFE5B72E /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		74B4FD673887E0294EC64112 /* MyWantlistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyWantlistView.swift; sourceTree = "<group>"; };
@@ -82,10 +105,19 @@
 		0945C28685A37273586B835C /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				1B7AB3BA4329E40425FB3AA9 /* CollectionStatus.swift */,
 				1E488ECD9838D0ABB7F4A33D /* LibraryEntry.swift */,
 				35862C30A935DEC9412C2DF2 /* Scan.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		161066883686605448A6F466 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				400C1A8E93C1E3BCD3178047 /* DetailViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		1B6EFD1A97748B9F8817C196 /* FlipSide */ = {
@@ -96,10 +128,20 @@
 				381C45531F49D9710B80692F /* Info.plist */,
 				CBEBE866D657094C4DEDFD08 /* Config */,
 				0945C28685A37273586B835C /* Models */,
+				906E3C7D4BE8B5D7800D30E5 /* Performance */,
 				C1767B24B5559214C69C9EF3 /* Services */,
+				161066883686605448A6F466 /* ViewModels */,
 				68D6B60D9BCBDCFEAA631008 /* Views */,
 			);
 			path = FlipSide;
+			sourceTree = "<group>";
+		};
+		63A659304A5390B8CD2C37BE /* FlipSideTests */ = {
+			isa = PBXGroup;
+			children = (
+				1467018963556ED15DF0EA00 /* PerformanceBudgetTests.swift */,
+			);
+			path = FlipSideTests;
 			sourceTree = "<group>";
 		};
 		68D6B60D9BCBDCFEAA631008 /* Views */ = {
@@ -121,6 +163,14 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		906E3C7D4BE8B5D7800D30E5 /* Performance */ = {
+			isa = PBXGroup;
+			children = (
+				2A926EF968B57D332CF89A88 /* AppPerformanceBudget.swift */,
+			);
+			path = Performance;
+			sourceTree = "<group>";
+		};
 		9627BAFF07D18EA883CEDF4A /* Components */ = {
 			isa = PBXGroup;
 			children = (
@@ -134,11 +184,13 @@
 		C1767B24B5559214C69C9EF3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				15CE853EFFCC50C1C7393183 /* CollectionStatusStore.swift */,
 				049BECCA03245E1C9D2B7D8C /* DiscogsAuthService.swift */,
 				CD3DD15F4CBC61B88B0FC392 /* DiscogsCollectionService.swift */,
 				EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */,
 				BEF623462BFA4AA8672B251E /* DiscogsLibraryViewModel.swift */,
 				FD2BE0076F5FBD08FF0DB0AF /* DiscogsOAuthSigner.swift */,
+				5F0F029E999CCD3D82BA1294 /* DiscogsRateLimiter.swift */,
 				0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
 				95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */,
 				908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */,
@@ -172,6 +224,7 @@
 			isa = PBXGroup;
 			children = (
 				1B6EFD1A97748B9F8817C196 /* FlipSide */,
+				63A659304A5390B8CD2C37BE /* FlipSideTests */,
 				FA341FDCABE236F3D5D54B73 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -180,6 +233,7 @@
 			isa = PBXGroup;
 			children = (
 				ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */,
+				4E14B5AE4E40A3D07BFA6F6E /* FlipSideTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -187,6 +241,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F47849DBEAD120FDF4FDB3C6 /* FlipSideTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FE811C5C58BFB216016D73F0 /* Build configuration list for PBXNativeTarget "FlipSideTests" */;
+			buildPhases = (
+				7E5BD03C3871CF24ECF2A1C6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B26D992A38BCCDEAC9B376B8 /* PBXTargetDependency */,
+			);
+			name = FlipSideTests;
+			packageProductDependencies = (
+			);
+			productName = FlipSideTests;
+			productReference = 4E14B5AE4E40A3D07BFA6F6E /* FlipSideTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		F7623E7042B22F5ED35619A4 /* FlipSide */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E68C8568E4B278ACA0CFD8EC /* Build configuration list for PBXNativeTarget "FlipSide" */;
@@ -229,6 +301,7 @@
 			projectRoot = "";
 			targets = (
 				F7623E7042B22F5ED35619A4 /* FlipSide */,
+				F47849DBEAD120FDF4FDB3C6 /* FlipSideTests */,
 			);
 		};
 /* End PBXProject section */
@@ -245,14 +318,26 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		7E5BD03C3871CF24ECF2A1C6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0E2E9A83F126A9E66DB23544 /* PerformanceBudgetTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9D3DE160D4CB1CA607C07135 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EED7BC1114602C169E5AAE88 /* AppPerformanceBudget.swift in Sources */,
 				093B30395BF65F6379720DE8 /* CachedAsyncImage.swift in Sources */,
 				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
+				84FFF9A8F229B62C6388E837 /* CollectionStatus.swift in Sources */,
+				0678602ED8736B3ABA283ACA /* CollectionStatusStore.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
 				2B551AFB11CBF61727E62907 /* DetailView.swift in Sources */,
+				584072F24A3C1928D8D7A8EA /* DetailViewModel.swift in Sources */,
 				119A0914CD615C9E257C16BF /* DiscogsAuthService.swift in Sources */,
 				69A5B1FC74CC46CAE7F12AD3 /* DiscogsCollectionService.swift in Sources */,
 				60B138742ED3C438028900EF /* DiscogsLibraryService.swift in Sources */,
@@ -260,6 +345,7 @@
 				3013E7212C60DF4E1EE0A411 /* DiscogsMatchCard.swift in Sources */,
 				8AFA31FB9CBCD42282FB65D3 /* DiscogsMatchCarousel.swift in Sources */,
 				D5954FF74D4D36856E342BEC /* DiscogsOAuthSigner.swift in Sources */,
+				B99A4654F8C6705E7DFD8635 /* DiscogsRateLimiter.swift in Sources */,
 				470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
 				81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */,
 				1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */,
@@ -283,6 +369,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B26D992A38BCCDEAC9B376B8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F7623E7042B22F5ED35619A4 /* FlipSide */;
+			targetProxy = F8C85AD781E279D63FE60D32 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		066E96F1A12BEBE6AFF2DA06 /* Release */ = {
@@ -363,6 +457,25 @@
 			};
 			name = Release;
 		};
+		983D3D2F1E5A16CCEDCE3403 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipside.FlipSideTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FlipSide.app/FlipSide";
+			};
+			name = Debug;
+		};
 		A56637A8B645624C6FD871ED /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -426,6 +539,25 @@
 			};
 			name = Debug;
 		};
+		BB27201FA7810D4BFDEF9021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipside.FlipSideTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FlipSide.app/FlipSide";
+			};
+			name = Release;
+		};
 		E483EC43C68BED6029FA85F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = ABA87F722DF9B7C789B1CFF9 /* AppConfig.xcconfig */;
@@ -465,6 +597,15 @@
 			buildConfigurations = (
 				E483EC43C68BED6029FA85F4 /* Debug */,
 				066E96F1A12BEBE6AFF2DA06 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FE811C5C58BFB216016D73F0 /* Build configuration list for PBXNativeTarget "FlipSideTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				983D3D2F1E5A16CCEDCE3403 /* Debug */,
+				BB27201FA7810D4BFDEF9021 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

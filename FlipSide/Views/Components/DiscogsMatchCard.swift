@@ -10,7 +10,7 @@ import SwiftUI
 struct DiscogsMatchCard: View {
     let match: DiscogsMatch
     let rank: Int
-    var collectionStatus: (isInCollection: Bool?, isInWantlist: Bool?)? = nil
+    var collectionStatus: CollectionStatus? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -41,32 +41,23 @@ struct DiscogsMatchCard: View {
             
             // Album cover image
             if let imageUrl = match.imageUrl {
-                AsyncImage(url: imageUrl) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 150)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    case .failure:
-                        VStack(spacing: 8) {
-                            Image(systemName: "photo")
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                            Text("Artwork unavailable")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                CachedAsyncImage(url: imageUrl) { image in
+                    image
+                        .resizable()
+                        .scaledToFit()
                         .frame(maxWidth: .infinity)
-                        .frame(height: 150)
-                    @unknown default:
-                        EmptyView()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } placeholder: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("Artwork unavailable")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
                 }
             } else {
                 VStack(spacing: 8) {
@@ -119,7 +110,7 @@ struct DiscogsMatchCard: View {
                 // Collection status labels
                 if let status = collectionStatus {
                     VStack(alignment: .leading, spacing: 4) {
-                        if status.isInCollection == true {
+                        if status.isInCollection {
                             HStack(spacing: 4) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption)
@@ -130,7 +121,7 @@ struct DiscogsMatchCard: View {
                                     .foregroundStyle(.green)
                             }
                         }
-                        if status.isInWantlist == true {
+                        if status.isInWantlist {
                             HStack(spacing: 4) {
                                 Image(systemName: "heart.fill")
                                     .font(.caption)
@@ -222,7 +213,7 @@ struct DiscogsMatchCard: View {
             DiscogsMatchCard(
                 match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
                 rank: 1,
-                collectionStatus: (isInCollection: true, isInWantlist: true)
+                collectionStatus: CollectionStatus(isInCollection: true, isInWantlist: true)
             )
             .padding()
             
@@ -230,7 +221,7 @@ struct DiscogsMatchCard: View {
             DiscogsMatchCard(
                 match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
                 rank: 2,
-                collectionStatus: (isInCollection: true, isInWantlist: false)
+                collectionStatus: CollectionStatus(isInCollection: true, isInWantlist: false)
             )
             .padding()
             
@@ -238,7 +229,7 @@ struct DiscogsMatchCard: View {
             DiscogsMatchCard(
                 match: .sample(releaseId: 123458, title: "Blue Train", artist: "John Coltrane", year: 1957, matchScore: 0.88),
                 rank: 3,
-                collectionStatus: (isInCollection: false, isInWantlist: true)
+                collectionStatus: CollectionStatus(isInCollection: false, isInWantlist: true)
             )
             .padding()
             

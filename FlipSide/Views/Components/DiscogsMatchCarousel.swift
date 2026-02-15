@@ -9,7 +9,8 @@ import SwiftUI
 
 struct DiscogsMatchCarousel: View {
     let matches: [DiscogsMatch]
-    var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
+    var collectionStatusByReleaseId: [Int: CollectionStatus] = [:]
+    var onMatchAppear: ((DiscogsMatch, Int) -> Void)? = nil
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     var body: some View {
@@ -25,6 +26,9 @@ struct DiscogsMatchCarousel: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onMatchSelected(match, index)
+                    }
+                    .onAppear {
+                        onMatchAppear?(match, index)
                     }
                     .scaleEffect(1.0) // Enables tap animation
                     .animation(.easeInOut(duration: 0.1), value: false)

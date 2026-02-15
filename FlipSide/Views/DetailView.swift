@@ -13,16 +13,12 @@ struct DetailView: View {
     let scanId: UUID?
     let onDone: () -> Void
     
+    @StateObject private var viewModel = DetailViewModel()
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var authService = DiscogsAuthService.shared
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     private let libraryCache = SwiftDataLibraryCache.shared
-    
-    // Async loading state
-    @State private var completeMatch: DiscogsMatch?
-    @State private var isLoadingDetails = false
-    @State private var loadError: String?
     
     // Collection status loading state
     @State private var isLoadingCollectionStatus = false
@@ -38,36 +34,12 @@ struct DetailView: View {
     
     // Use complete match if available, otherwise use basic match
     private var displayMatch: DiscogsMatch {
-        completeMatch ?? match
+        viewModel.displayMatch ?? match
     }
 
     // Defensive dedupe for cached releases that may already include duplicate entries.
     private var displayVideos: [DiscogsMatch.Video] {
-        var uniqueVideos: [DiscogsMatch.Video] = []
-        var seenKeys = Set<String>()
-
-        for video in displayMatch.videos {
-            let normalizedURI = normalizedVideoURI(video.uri)
-            let normalizedTitle = video.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let dedupeKey: String
-            if let youtubeID = youtubeVideoID(from: normalizedURI) {
-                dedupeKey = "youtube:\(youtubeID)"
-            } else if !normalizedURI.isEmpty {
-                dedupeKey = "uri:\(normalizedURI)"
-            } else {
-                dedupeKey = "title:\(normalizedTitle)|duration:\(video.duration ?? -1)"
-            }
-
-            guard !seenKeys.contains(dedupeKey) else { continue }
-            seenKeys.insert(dedupeKey)
-            uniqueVideos.append(video)
-        }
-
-        return uniqueVideos
-    }
-
-    private func normalizedVideoURI(_ uri: String) -> String {
-        uri.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        viewModel.displayVideos(for: displayMatch)
     }
 
     private func youtubeVideoID(from uri: String) -> String? {
@@ -120,7 +92,7 @@ struct DetailView: View {
                 }
                 
                 // Loading indicator
-                if isLoadingDetails {
+                if viewModel.isLoadingDetails {
                     loadingDetailsSection
                 }
                 
@@ -185,8 +157,14 @@ struct DetailView: View {
         }
         .navigationTitle("Release Details")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await loadCompleteDetailsIfNeeded()
+        .task(id: displayMatch.releaseId) {
+            await viewModel.loadCompleteDetailsIfNeeded(
+                from: match,
+                scanId: scanId,
+                networkConnected: networkMonitor.isConnected,
+                modelContext: modelContext
+            )
+            await loadCollectionStatus(forceRefresh: false)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -231,84 +209,21 @@ struct DetailView: View {
         .padding(.horizontal)
     }
     
-    // MARK: - Async Loading Functions
-    
-    private func loadCompleteDetailsIfNeeded() async {
-        // Skip if already complete (has tracklist/formats)
-        guard displayMatch.tracklist.isEmpty || displayMatch.formats.isEmpty else {
-            completeMatch = match
-            return
-        }
-        
-        // Skip if offline
-        guard networkMonitor.isConnected else {
-            completeMatch = match
-            return
-        }
-        
-        isLoadingDetails = true
-        
-        do {
-            let complete = try await DiscogsService.shared.fetchCompleteReleaseDetails(releaseId: displayMatch.releaseId)
-            
-            await MainActor.run {
-                completeMatch = complete
-                isLoadingDetails = false
-                
-                // Update cached scan if available
-                updateCachedScan(with: complete)
-            }
-        } catch {
-            await MainActor.run {
-                loadError = error.localizedDescription
-                isLoadingDetails = false
-                // Use basic match as fallback
-                completeMatch = match
-            }
-        }
-    }
-    
-    private func updateCachedScan(with completeMatch: DiscogsMatch) {
-        guard let scanId = scanId else { return }
-        
-        let fetchDescriptor = FetchDescriptor<Scan>(
-            predicate: #Predicate { $0.id == scanId }
-        )
-        
-        if let scan = try? modelContext.fetch(fetchDescriptor).first,
-           let selectedIndex = scan.selectedMatchIndex,
-           selectedIndex < scan.discogsMatches.count {
-            // Replace the basic match with complete match
-            scan.discogsMatches[selectedIndex] = completeMatch
-            try? modelContext.save()
-        }
-    }
-    
     // MARK: - Album Artwork Section
     
     private var albumArtworkSection: some View {
         VStack {
             if let imageUrl = displayMatch.imageUrl {
-                AsyncImage(url: imageUrl) { phase in
-                    switch phase {
-                    case .empty:
-                        ZStack {
-                            Color(.secondarySystemGroupedBackground)
-                            ProgressView()
-                        }
+                CachedAsyncImage(url: imageUrl) { image in
+                    image
+                        .resizable()
+                        .scaledToFit()
                         .frame(maxWidth: .infinity)
-                        .frame(height: 350)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .shadow(radius: 8)
-                        
-                    case .failure:
+                        .shadow(radius: 8)
+                } placeholder: {
+                    ZStack {
+                        Color(.secondarySystemGroupedBackground)
                         VStack(spacing: 12) {
                             Image(systemName: "photo")
                                 .font(.system(size: 60))
@@ -317,14 +232,10 @@ struct DetailView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 350)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        
-                    @unknown default:
-                        EmptyView()
                     }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 350)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
             } else {
                 VStack(spacing: 12) {
@@ -693,12 +604,7 @@ struct DetailView: View {
     }
     
     private func formatPrice(_ price: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: price as NSDecimalNumber) ?? "$\(price)"
+        viewModel.formatPrice(price)
     }
     
     /// Return appropriate icon for condition grade
@@ -805,30 +711,15 @@ struct DetailView: View {
                         HStack {
                             Group {
                                 if let thumbnailURL = videoThumbnailURL(for: video.uri) {
-                                    AsyncImage(url: thumbnailURL) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ZStack {
-                                                Color(.tertiarySystemFill)
-                                                Image(systemName: "play.rectangle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                        case .failure:
-                                            ZStack {
-                                                Color(.tertiarySystemFill)
-                                                Image(systemName: "play.rectangle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        @unknown default:
-                                            ZStack {
-                                                Color(.tertiarySystemFill)
-                                                Image(systemName: "play.rectangle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
+                                    CachedAsyncImage(url: thumbnailURL) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                    } placeholder: {
+                                        ZStack {
+                                            Color(.tertiarySystemFill)
+                                            Image(systemName: "play.rectangle.fill")
+                                                .foregroundStyle(.secondary)
                                         }
                                     }
                                 } else {
@@ -967,7 +858,7 @@ struct DetailView: View {
                     } else {
                         Button("Retry") {
                             Task {
-                                await loadCollectionStatus()
+                                await loadCollectionStatus(forceRefresh: true)
                             }
                         }
                         .buttonStyle(.bordered)
@@ -1065,7 +956,7 @@ struct DetailView: View {
                     // Refresh button
                     Button {
                         Task {
-                            await loadCollectionStatus()
+                            await loadCollectionStatus(forceRefresh: true)
                         }
                     } label: {
                         HStack {
@@ -1084,15 +975,11 @@ struct DetailView: View {
             }
         }
         .padding(.horizontal)
-        .task {
-            // Load collection status when view appears
-            await loadCollectionStatus()
-        }
     }
     
     // MARK: - Collection Action Methods
     
-    private func loadCollectionStatus() async {
+    private func loadCollectionStatus(forceRefresh: Bool) async {
         // Load cached scan data to show immediately (but always refresh from API when online)
         if let scanId = scanId {
             let fetchDescriptor = FetchDescriptor<Scan>(
@@ -1136,17 +1023,25 @@ struct DetailView: View {
         }
         
         do {
-            let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+            let status = try await CollectionStatusStore.shared.status(
+                username: username,
                 releaseId: displayMatch.releaseId,
-                username: username
-            )
-            
+                forceRefresh: forceRefresh
+            ) {
+                let remote = try await DiscogsCollectionService.shared.checkCollectionStatus(
+                    releaseId: displayMatch.releaseId,
+                    username: username
+                )
+                return CollectionStatus(
+                    isInCollection: remote.isInCollection,
+                    isInWantlist: remote.isInWantlist
+                )
+            }
+
             await MainActor.run {
                 isInCollection = status.isInCollection
                 isInWantlist = status.isInWantlist
                 isLoadingCollectionStatus = false
-                
-                // Update scan if available
                 updateScanCollectionStatus(isInCollection: status.isInCollection, isInWantlist: status.isInWantlist)
             }
         } catch {
@@ -1166,6 +1061,7 @@ struct DetailView: View {
             isAddingToCollection = true
             collectionError = nil
         }
+        await CollectionStatusStore.shared.invalidate(username: username, releaseId: displayMatch.releaseId)
         
         do {
             try await DiscogsCollectionService.shared.addToCollection(
@@ -1195,6 +1091,14 @@ struct DetailView: View {
                 action: action,
                 startedAt: optimisticStartedAt
             )
+            await CollectionStatusStore.shared.updateCachedStatus(
+                username: username,
+                releaseId: displayMatch.releaseId,
+                status: CollectionStatus(
+                    isInCollection: true,
+                    isInWantlist: optimisticWantlist ?? false
+                )
+            )
 
             verifyAndReconcileStatusInBackground(
                 username: username,
@@ -1219,6 +1123,7 @@ struct DetailView: View {
             isRemovingFromCollection = true
             collectionError = nil
         }
+        await CollectionStatusStore.shared.invalidate(username: username, releaseId: displayMatch.releaseId)
         
         do {
             try await DiscogsCollectionService.shared.removeFromCollection(
@@ -1252,6 +1157,14 @@ struct DetailView: View {
                 action: action,
                 startedAt: optimisticStartedAt
             )
+            await CollectionStatusStore.shared.updateCachedStatus(
+                username: username,
+                releaseId: displayMatch.releaseId,
+                status: CollectionStatus(
+                    isInCollection: false,
+                    isInWantlist: optimisticWantlist ?? false
+                )
+            )
 
             verifyAndReconcileStatusInBackground(
                 username: username,
@@ -1276,6 +1189,7 @@ struct DetailView: View {
             isAddingToWantlist = true
             collectionError = nil
         }
+        await CollectionStatusStore.shared.invalidate(username: username, releaseId: displayMatch.releaseId)
         
         do {
             try await DiscogsCollectionService.shared.addToWantlist(
@@ -1305,6 +1219,14 @@ struct DetailView: View {
                 action: action,
                 startedAt: optimisticStartedAt
             )
+            await CollectionStatusStore.shared.updateCachedStatus(
+                username: username,
+                releaseId: displayMatch.releaseId,
+                status: CollectionStatus(
+                    isInCollection: optimisticCollection ?? false,
+                    isInWantlist: true
+                )
+            )
 
             verifyAndReconcileStatusInBackground(
                 username: username,
@@ -1329,6 +1251,7 @@ struct DetailView: View {
             isRemovingFromWantlist = true
             collectionError = nil
         }
+        await CollectionStatusStore.shared.invalidate(username: username, releaseId: displayMatch.releaseId)
         
         do {
             try await DiscogsCollectionService.shared.removeFromWantlist(
@@ -1361,6 +1284,14 @@ struct DetailView: View {
                 "library_optimistic_completion_duration_seconds",
                 action: action,
                 startedAt: optimisticStartedAt
+            )
+            await CollectionStatusStore.shared.updateCachedStatus(
+                username: username,
+                releaseId: displayMatch.releaseId,
+                status: CollectionStatus(
+                    isInCollection: optimisticCollection ?? false,
+                    isInWantlist: false
+                )
             )
 
             verifyAndReconcileStatusInBackground(
@@ -1417,6 +1348,15 @@ struct DetailView: View {
                     verifiedWantlist: status.isInWantlist
                 )
                 print("metric library_status_verify_mismatch_count=\(mismatchCount) action=\(action)")
+
+                await CollectionStatusStore.shared.updateCachedStatus(
+                    username: username,
+                    releaseId: displayMatch.releaseId,
+                    status: CollectionStatus(
+                        isInCollection: status.isInCollection,
+                        isInWantlist: status.isInWantlist
+                    )
+                )
 
                 try await MainActor.run {
                     isInCollection = status.isInCollection

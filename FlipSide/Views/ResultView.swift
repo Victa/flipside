@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ResultView: View {
     let image: UIImage
@@ -18,11 +17,11 @@ struct ResultView: View {
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var authService = DiscogsAuthService.shared
-    @Environment(\.modelContext) private var modelContext
     
     // Collection status state per release ID
-    @State private var collectionStatusByReleaseId: [Int: (isInCollection: Bool?, isInWantlist: Bool?)] = [:]
-    @State private var isLoadingCollectionStatus = false
+    @State private var collectionStatusByReleaseId: [Int: CollectionStatus] = [:]
+    @State private var loadingReleaseIDs = Set<Int>()
+    @State private var statusLoadStartedAt: Date?
     
     var body: some View {
         ScrollView {
@@ -40,45 +39,76 @@ struct ResultView: View {
         .navigationTitle("Select Match")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await loadCollectionStatusForMatches()
+            await loadInitialCollectionStatus()
         }
     }
     
     // MARK: - Collection Status Loading
     
-    private func loadCollectionStatusForMatches() async {
-        // Skip if no matches or offline
-        guard !discogsMatches.isEmpty, networkMonitor.isConnected else { return }
-        
+    private var displayedMatches: [DiscogsMatch] {
+        Array(discogsMatches.prefix(5))
+    }
+
+    @MainActor
+    private func loadInitialCollectionStatus() async {
+        guard !displayedMatches.isEmpty, networkMonitor.isConnected else { return }
+        guard authService.isConnected else { return }
+
+        statusLoadStartedAt = Date()
+
+        if let first = displayedMatches.first {
+            await loadStatus(for: first, forceRefresh: false)
+        }
+
+        if displayedMatches.count > 1 {
+            await loadStatus(for: displayedMatches[1], forceRefresh: false)
+        }
+    }
+
+    @MainActor
+    private func loadStatus(for match: DiscogsMatch, forceRefresh: Bool) async {
+        guard networkMonitor.isConnected else { return }
         guard authService.isConnected else { return }
         guard let username = authService.currentUsername, !username.isEmpty else { return }
-        
-        await MainActor.run {
-            isLoadingCollectionStatus = true
+
+        if !forceRefresh, collectionStatusByReleaseId[match.releaseId] != nil {
+            return
         }
-        
-        // Check status for each match (up to 5 shown in carousel)
-        for match in discogsMatches.prefix(5) {
-            do {
-                let status = try await DiscogsCollectionService.shared.checkCollectionStatus(
+
+        if loadingReleaseIDs.contains(match.releaseId) {
+            return
+        }
+
+        loadingReleaseIDs.insert(match.releaseId)
+        defer {
+            loadingReleaseIDs.remove(match.releaseId)
+        }
+
+        do {
+            let status = try await CollectionStatusStore.shared.status(
+                username: username,
+                releaseId: match.releaseId,
+                forceRefresh: forceRefresh
+            ) {
+                let tuple = try await DiscogsCollectionService.shared.checkCollectionStatus(
                     releaseId: match.releaseId,
                     username: username
                 )
-                
-                await MainActor.run {
-                    collectionStatusByReleaseId[match.releaseId] = (
-                        isInCollection: status.isInCollection,
-                        isInWantlist: status.isInWantlist
-                    )
-                }
-            } catch {
-                // Silently fail for individual status checks - not critical
-                print("Failed to check collection status for release \(match.releaseId): \(error)")
+                return CollectionStatus(
+                    isInCollection: tuple.isInCollection,
+                    isInWantlist: tuple.isInWantlist
+                )
             }
-        }
-        
-        await MainActor.run {
-            isLoadingCollectionStatus = false
+
+            collectionStatusByReleaseId[match.releaseId] = status
+
+            if collectionStatusByReleaseId.count == 1, let statusLoadStartedAt {
+                let elapsed = Date().timeIntervalSince(statusLoadStartedAt)
+                PerformanceMetrics.gauge("result_first_status_badge_seconds", value: elapsed)
+            }
+        } catch {
+            // Silently fail for individual status checks - not critical
+            print("Failed to check collection status for release \(match.releaseId): \(error)")
         }
     }
     
@@ -109,7 +139,7 @@ struct ResultView: View {
                     .font(.headline)
                 Spacer()
                 if !discogsMatches.isEmpty {
-                    Text("\(discogsMatches.prefix(5).count) \(discogsMatches.count == 1 ? "match" : "matches")")
+                    Text("\(displayedMatches.count) \(displayedMatches.count == 1 ? "match" : "matches")")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -126,8 +156,13 @@ struct ResultView: View {
                         .padding(.horizontal)
                     
                     DiscogsMatchCarousel(
-                        matches: Array(discogsMatches.prefix(5)),
+                        matches: displayedMatches,
                         collectionStatusByReleaseId: collectionStatusByReleaseId,
+                        onMatchAppear: { match, _ in
+                            Task {
+                                await loadStatus(for: match, forceRefresh: false)
+                            }
+                        },
                         onMatchSelected: { match, index in
                             onMatchSelected(match, index)
                         }

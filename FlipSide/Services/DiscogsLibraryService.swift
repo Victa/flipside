@@ -37,10 +37,8 @@ final class DiscogsLibraryService {
 
     private let baseURL = "https://api.discogs.com"
     private let userAgent = "FlipSideApp/1.0"
-    private let rateLimitDelay: TimeInterval = 1.1
     private let max429Retries = 3
-    private var lastRequestTime: Date?
-    private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.library.ratelimit")
+    private let rateLimiter = DiscogsRateLimiter.shared
 
     enum LibraryServiceError: LocalizedError {
         case notConnected
@@ -465,14 +463,8 @@ extension DiscogsLibraryService {
             }
 
             if httpResponse.statusCode == 429, attempt < max429Retries {
-                let retryAfterSeconds: UInt64
-                if let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After"),
-                   let seconds = UInt64(retryAfter) {
-                    retryAfterSeconds = seconds * 1_000_000_000
-                } else {
-                    retryAfterSeconds = backoff
-                }
-                try await Task.sleep(nanoseconds: retryAfterSeconds)
+                let retryAfter = DiscogsRateLimiter.retryAfterSeconds(from: httpResponse)
+                await rateLimiter.backoff(attempt: attempt, retryAfter: retryAfter ?? (Double(backoff) / 1_000_000_000))
                 backoff *= 2
                 attempt += 1
                 continue
@@ -485,14 +477,6 @@ extension DiscogsLibraryService {
     }
 
     private func applyRateLimit() async {
-        rateLimitQueue.sync {
-            if let lastRequest = lastRequestTime {
-                let elapsed = Date().timeIntervalSince(lastRequest)
-                if elapsed < rateLimitDelay {
-                    Thread.sleep(forTimeInterval: rateLimitDelay - elapsed)
-                }
-            }
-            lastRequestTime = Date()
-        }
+        await rateLimiter.acquire()
     }
 }

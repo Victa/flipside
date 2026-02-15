@@ -17,13 +17,8 @@ final class DiscogsService {
     private let releaseEndpoint = "/releases"
     private let marketplaceEndpoint = "/marketplace/price_suggestions"
     private let maxRetries = 3
-    private let retryDelay: TimeInterval = 1.0
     private let maxResultsPerSearch = 10
-    
-    // Rate limiting configuration
-    private let rateLimitDelay: TimeInterval = 0.2 // 60 requests/minute = 1 per second (using 0.2s for better UX)
-    private var lastRequestTime: Date?
-    private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.ratelimit")
+    private let rateLimiter = DiscogsRateLimiter.shared
     
     // MARK: - Error Types
     
@@ -601,8 +596,7 @@ final class DiscogsService {
             } catch DiscogsError.rateLimitExceeded {
                 // For rate limits, use exponential backoff
                 if attempt < maxRetries - 1 {
-                    let delay = retryDelay * pow(2.0, Double(attempt))
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    await rateLimiter.backoff(attempt: attempt)
                     continue
                 }
             } catch {
@@ -732,16 +726,7 @@ final class DiscogsService {
     
     /// Apply rate limiting by waiting if necessary
     private func applyRateLimit() async {
-        rateLimitQueue.sync {
-            if let lastRequest = lastRequestTime {
-                let timeSinceLastRequest = Date().timeIntervalSince(lastRequest)
-                if timeSinceLastRequest < rateLimitDelay {
-                    let waitTime = rateLimitDelay - timeSinceLastRequest
-                    Thread.sleep(forTimeInterval: waitTime)
-                }
-            }
-            lastRequestTime = Date()
-        }
+        await rateLimiter.acquire()
     }
     
     /// Build primary search query (catalog number only - most specific)
