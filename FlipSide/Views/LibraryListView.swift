@@ -61,6 +61,8 @@ struct LibraryListView: View {
                         onSelect(entry)
                     } label: {
                         rowView(for: entry)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
