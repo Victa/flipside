@@ -14,7 +14,7 @@ final class SwiftDataLibraryCache {
             }
         )
         descriptor.sortBy = [
-            SortDescriptor(\LibraryEntry.position, order: .forward),
+            SortDescriptor(\LibraryEntry.dateAdded, order: .reverse),
             SortDescriptor(\LibraryEntry.title, order: .forward)
         ]
         return try modelContext.fetch(descriptor)
@@ -44,10 +44,13 @@ final class SwiftDataLibraryCache {
                 entry.artist = item.artist
                 entry.imageURLString = item.imageURLString
                 entry.year = item.year
+                entry.country = item.country
+                entry.formatSummary = item.formatSummary
                 entry.label = item.label
                 entry.catalogNumber = item.catalogNumber
                 entry.discogsListItemID = item.discogsListItemID
                 entry.position = item.position
+                entry.dateAdded = item.dateAdded
                 entry.updatedAt = updatedAt
             } else {
                 let entry = LibraryEntry(
@@ -56,11 +59,14 @@ final class SwiftDataLibraryCache {
                     artist: item.artist,
                     imageURLString: item.imageURLString,
                     year: item.year,
+                    country: item.country,
+                    formatSummary: item.formatSummary,
                     label: item.label,
                     catalogNumber: item.catalogNumber,
                     listType: listType,
                     discogsListItemID: item.discogsListItemID,
                     position: item.position,
+                    dateAdded: item.dateAdded,
                     updatedAt: updatedAt
                 )
                 modelContext.insert(entry)

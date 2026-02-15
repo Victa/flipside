@@ -25,7 +25,7 @@ struct LibraryListView: View {
                 entry.listTypeRaw == listTypeRaw
             },
             sort: [
-                SortDescriptor(\LibraryEntry.position, order: .forward),
+                SortDescriptor(\LibraryEntry.dateAdded, order: .reverse),
                 SortDescriptor(\LibraryEntry.title, order: .forward)
             ]
         )
@@ -177,17 +177,39 @@ struct LibraryListView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                let metadata = [
-                    entry.label,
-                    entry.catalogNumber,
-                    entry.year.map(String.init)
+                let yearCountry = [
+                    entry.year.map(String.init),
+                    entry.country
                 ]
-                    .compactMap { $0 }
+                    .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
                     .filter { !$0.isEmpty }
-                    .joined(separator: " • ")
+                    .joined(separator: " - ")
 
-                if !metadata.isEmpty {
-                    Text(metadata)
+                if !yearCountry.isEmpty {
+                    Text(yearCountry)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if let formatSummary = entry.formatSummary?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !formatSummary.isEmpty {
+                    Text(formatSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                let labelCatalog = [
+                    entry.label,
+                    entry.catalogNumber
+                ]
+                    .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " - ")
+
+                if !labelCatalog.isEmpty {
+                    Text(labelCatalog)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

@@ -9,6 +9,8 @@ struct ContentView: View {
 
 struct AppRootTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query private var collectionEntries: [LibraryEntry]
+    @Query private var wantlistEntries: [LibraryEntry]
 
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var libraryViewModel = DiscogsLibraryViewModel.shared
@@ -24,6 +26,21 @@ struct AppRootTabView: View {
     @State private var currentProcessingStep: ProcessingStep = .readingImage
 
     private let keychainService = KeychainService.shared
+
+    init() {
+        let collectionRaw = LibraryListType.collection.rawValue
+        let wantlistRaw = LibraryListType.wantlist.rawValue
+        _collectionEntries = Query(
+            filter: #Predicate<LibraryEntry> { entry in
+                entry.listTypeRaw == collectionRaw
+            }
+        )
+        _wantlistEntries = Query(
+            filter: #Predicate<LibraryEntry> { entry in
+                entry.listTypeRaw == wantlistRaw
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -60,7 +77,7 @@ struct AppRootTabView: View {
 
                 floatingActionButton
             }
-            .navigationTitle(selectedTab.title)
+            .navigationTitle(selectedTabTitle)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: ProcessingDestination.self) { destination in
                 ProcessingView(image: destination.image, currentStep: currentProcessingStep)
@@ -155,6 +172,15 @@ struct AppRootTabView: View {
                 updateAPIKeyStatus()
                 checkFirstRun()
             }
+        }
+    }
+
+    private var selectedTabTitle: String {
+        switch selectedTab {
+        case .collection:
+            return "My Collection (\(collectionEntries.count))"
+        case .wantlist:
+            return "My Wantlist (\(wantlistEntries.count))"
         }
     }
 
@@ -269,15 +295,6 @@ struct AppRootTabView: View {
 private enum RootTab: Hashable {
     case collection
     case wantlist
-
-    var title: String {
-        switch self {
-        case .collection:
-            return "My Collection"
-        case .wantlist:
-            return "My Wantlist"
-        }
-    }
 }
 
 struct ProcessingDestination: Hashable {

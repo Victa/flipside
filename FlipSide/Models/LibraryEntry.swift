@@ -9,11 +9,14 @@ final class LibraryEntry {
     var artist: String
     var imageURLString: String?
     var year: Int?
+    var country: String?
+    var formatSummary: String?
     var label: String?
     var catalogNumber: String?
     var listTypeRaw: String
     var discogsListItemID: Int?
     var position: Int?
+    var dateAdded: Date?
     var updatedAt: Date
 
     init(
@@ -23,11 +26,14 @@ final class LibraryEntry {
         artist: String,
         imageURLString: String? = nil,
         year: Int? = nil,
+        country: String? = nil,
+        formatSummary: String? = nil,
         label: String? = nil,
         catalogNumber: String? = nil,
         listType: LibraryListType,
         discogsListItemID: Int? = nil,
         position: Int? = nil,
+        dateAdded: Date? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -36,11 +42,14 @@ final class LibraryEntry {
         self.artist = artist
         self.imageURLString = imageURLString
         self.year = year
+        self.country = country
+        self.formatSummary = formatSummary
         self.label = label
         self.catalogNumber = catalogNumber
         self.listTypeRaw = listType.rawValue
         self.discogsListItemID = discogsListItemID
         self.position = position
+        self.dateAdded = dateAdded
         self.updatedAt = updatedAt
     }
 
@@ -90,7 +99,7 @@ extension LibraryEntry {
             artist: artist,
             year: year,
             released: nil,
-            country: nil,
+            country: country,
             label: label,
             catalogNumber: catalogNumber,
             matchScore: 1.0,
