@@ -91,3 +91,5 @@ iOSInjectionProject/
 
 # Mac
 .DS_Store
+
+.cursor/debug.log
