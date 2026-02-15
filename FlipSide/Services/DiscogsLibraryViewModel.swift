@@ -134,6 +134,11 @@ final class DiscogsLibraryViewModel: ObservableObject {
         )
     }
 
+    func resetLibraryState() {
+        collectionState = ListState()
+        wantlistState = ListState()
+    }
+
     private func shouldRefresh(listType: LibraryListType, modelContext: ModelContext) -> Bool {
         if state(for: listType).isRefreshing {
             return false
