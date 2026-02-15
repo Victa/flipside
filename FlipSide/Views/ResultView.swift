@@ -175,9 +175,9 @@ struct ResultView: View {
                 confidence: 0.92
             ),
             discogsMatches: [
-                .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
-                .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
-                .sample(releaseId: 123458, title: "Kind of Blue (Limited Edition)", year: 2009, matchScore: 0.75, lowestPrice: nil)
+                .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
+                .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
+                .sample(releaseId: 123458, title: "Kind of Blue (Limited Edition)", year: 2009, matchScore: 0.75)
             ],
             discogsError: nil,
             onMatchSelected: { match, index in

@@ -72,7 +72,7 @@ struct DetailView: View {
                 }
                 
                 // Pricing information
-                if displayMatch.lowestPrice != nil || displayMatch.medianPrice != nil || displayMatch.highPrice != nil {
+                if let conditionPrices = displayMatch.conditionPrices, !conditionPrices.isEmpty {
                     pricingSection
                 }
                 
@@ -563,38 +563,32 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(spacing: 8) {
-                if let lowestPrice = displayMatch.lowestPrice {
-                    pricingRow(
-                        icon: "tag.fill",
-                        iconColor: .green,
-                        label: "Very Good (VG)",
-                        price: lowestPrice,
-                        priceColor: .green
-                    )
-                }
-                
-                if let medianPrice = displayMatch.medianPrice {
-                    pricingRow(
-                        icon: "chart.bar.fill",
-                        iconColor: .blue,
-                        label: "Very Good+ (VG+)",
-                        price: medianPrice,
-                        priceColor: .blue
-                    )
-                }
-                
-                if let highPrice = displayMatch.highPrice {
-                    pricingRow(
-                        icon: "arrow.up.circle.fill",
-                        iconColor: .orange,
-                        label: "Near Mint (NM)",
-                        price: highPrice,
-                        priceColor: .orange
-                    )
-                }
-                
-                // Show when no condition-based pricing is available but we have some price
-                if displayMatch.lowestPrice != nil || displayMatch.medianPrice != nil || displayMatch.highPrice != nil {
+                if let conditionPrices = displayMatch.conditionPrices, !conditionPrices.isEmpty {
+                    // Define the desired display order (highest to lowest condition)
+                    let conditionOrder = [
+                        "Mint (M)",
+                        "Near Mint (NM or M-)",
+                        "Very Good Plus (VG+)",
+                        "Very Good (VG)",
+                        "Good Plus (G+)",
+                        "Good (G)",
+                        "Fair (F)",
+                        "Poor (P)"
+                    ]
+                    
+                    // Display conditions in the specified order (only those available)
+                    ForEach(conditionOrder, id: \.self) { conditionName in
+                        if let priceData = conditionPrices[conditionName] {
+                            pricingRow(
+                                icon: iconForCondition(conditionName),
+                                iconColor: colorForCondition(conditionName),
+                                label: conditionName,
+                                price: priceData.value,
+                                priceColor: colorForCondition(conditionName)
+                            )
+                        }
+                    }
+                    
                     Text("Based on Discogs marketplace sales data")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
@@ -634,6 +628,54 @@ struct DetailView: View {
         formatter.minimumFractionDigits = 2
         formatter.maximumFractionDigits = 2
         return formatter.string(from: price as NSDecimalNumber) ?? "$\(price)"
+    }
+    
+    /// Return appropriate icon for condition grade
+    private func iconForCondition(_ condition: String) -> String {
+        switch condition {
+        case "Mint (M)":
+            return "star.fill"
+        case "Near Mint (NM or M-)":
+            return "arrow.up.circle.fill"
+        case "Very Good Plus (VG+)":
+            return "chart.bar.fill"
+        case "Very Good (VG)":
+            return "tag.fill"
+        case "Good Plus (G+)":
+            return "tag"
+        case "Good (G)":
+            return "circle"
+        case "Fair (F)":
+            return "circle.dotted"
+        case "Poor (P)":
+            return "exclamationmark.circle"
+        default:
+            return "tag.fill"
+        }
+    }
+    
+    /// Return appropriate color for condition grade
+    private func colorForCondition(_ condition: String) -> Color {
+        switch condition {
+        case "Mint (M)":
+            return .purple
+        case "Near Mint (NM or M-)":
+            return .orange
+        case "Very Good Plus (VG+)":
+            return .blue
+        case "Very Good (VG)":
+            return .green
+        case "Good Plus (G+)":
+            return .teal
+        case "Good (G)":
+            return .yellow
+        case "Fair (F)":
+            return .gray
+        case "Poor (P)":
+            return .red
+        default:
+            return .primary
+        }
     }
     
     // MARK: - Identifiers Section
@@ -856,9 +898,14 @@ struct DetailView: View {
                 identifiers: [
                     DiscogsMatch.Identifier(type: "Matrix / Runout", value: "XLP 47935-1A", description: "Side A")
                 ],
-                lowestPrice: 24.99,
-                medianPrice: 35.00,
-                highPrice: 75.00,
+                conditionPrices: [
+                    "Mint (M)": DiscogsMatch.ConditionPrice(currency: "USD", value: 85.00),
+                    "Near Mint (NM or M-)": DiscogsMatch.ConditionPrice(currency: "USD", value: 75.00),
+                    "Very Good Plus (VG+)": DiscogsMatch.ConditionPrice(currency: "USD", value: 35.00),
+                    "Very Good (VG)": DiscogsMatch.ConditionPrice(currency: "USD", value: 24.99),
+                    "Good Plus (G+)": DiscogsMatch.ConditionPrice(currency: "USD", value: 18.00),
+                    "Good (G)": DiscogsMatch.ConditionPrice(currency: "USD", value: 12.00)
+                ],
                 numForSale: 42,
                 inWantlist: 1523,
                 inCollection: 3891,

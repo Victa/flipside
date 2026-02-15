@@ -89,10 +89,15 @@ struct DiscogsMatch: Codable, Equatable {
     // Identifiers (barcodes, matrix numbers)
     var identifiers: [Identifier]
     
-    // Pricing
-    var lowestPrice: Decimal?
-    var medianPrice: Decimal?
-    var highPrice: Decimal?
+    // Pricing by condition grade
+    // Dictionary keyed by condition name (e.g., "Mint (M)", "Near Mint (NM or M-)", "Very Good Plus (VG+)")
+    // This allows displaying all condition prices that Discogs returns
+    var conditionPrices: [String: ConditionPrice]?
+    
+    struct ConditionPrice: Codable, Equatable {
+        var currency: String // "USD", "EUR", etc.
+        var value: Decimal
+    }
     
     // Community stats
     var numForSale: Int? // Number of copies available for sale
@@ -150,9 +155,11 @@ struct DiscogsMatch: Codable, Equatable {
         year: Int? = 1959,
         matchScore: Double = 0.95,
         genres: [String] = ["Jazz"],
-        lowestPrice: Decimal? = 24.99,
-        medianPrice: Decimal? = 35.00,
-        highPrice: Decimal? = 75.00
+        conditionPrices: [String: ConditionPrice]? = [
+            "Very Good (VG)": ConditionPrice(currency: "USD", value: 24.99),
+            "Very Good Plus (VG+)": ConditionPrice(currency: "USD", value: 35.00),
+            "Near Mint (NM or M-)": ConditionPrice(currency: "USD", value: 75.00)
+        ]
     ) -> DiscogsMatch {
         return DiscogsMatch(
             releaseId: releaseId,
@@ -171,9 +178,7 @@ struct DiscogsMatch: Codable, Equatable {
             formats: [],
             tracklist: [],
             identifiers: [],
-            lowestPrice: lowestPrice,
-            medianPrice: medianPrice,
-            highPrice: highPrice,
+            conditionPrices: conditionPrices,
             numForSale: nil,
             inWantlist: nil,
             inCollection: nil,

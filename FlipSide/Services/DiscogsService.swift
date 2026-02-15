@@ -226,14 +226,6 @@ final class DiscogsService {
         let value: Double
     }
     
-    /// Parsed pricing from the price suggestions endpoint, mapped to condition grades
-    private struct ConditionPricing {
-        let veryGood: Double?       // VG
-        let veryGoodPlus: Double?   // VG+
-        let nearMint: Double?       // NM or M-
-        let mint: Double?           // M
-    }
-    
     // MARK: - Singleton
     
     static let shared = DiscogsService()
@@ -318,9 +310,7 @@ final class DiscogsService {
                 identifiers: [],
                 
                 // Pricing
-                lowestPrice: nil, // Will be fetched separately if needed
-                medianPrice: nil, // Will be fetched separately if needed
-                highPrice: nil,   // Will be fetched separately if needed
+                conditionPrices: nil, // Will be fetched separately if needed
                 
                 // Community stats
                 numForSale: nil,
@@ -386,9 +376,9 @@ final class DiscogsService {
     /// The Discogs price_suggestions endpoint returns a dictionary keyed by condition names
     /// (e.g., "Mint (M)", "Very Good Plus (VG+)") with {currency, value} for each.
     /// - Parameter releaseId: The Discogs release ID
-    /// - Returns: ConditionPricing with prices mapped from condition grades
+    /// - Returns: Dictionary of condition names to DiscogsMatch.ConditionPrice
     /// - Throws: DiscogsError if fetch fails
-    private func fetchPriceSuggestions(releaseId: Int) async throws -> ConditionPricing {
+    private func fetchPriceSuggestions(releaseId: Int) async throws -> [String: DiscogsMatch.ConditionPrice] {
         guard let personalToken = KeychainService.shared.discogsPersonalToken else {
             throw DiscogsError.noPersonalToken
         }
@@ -419,33 +409,19 @@ final class DiscogsService {
         do {
             let suggestions = try decoder.decode([String: PriceSuggestion].self, from: data)
             
-            // Map condition keys to our structured pricing
+            // Convert all suggestions to DiscogsMatch.ConditionPrice format
             // Keys from Discogs: "Mint (M)", "Near Mint (NM or M-)", "Very Good Plus (VG+)",
             //                     "Very Good (VG)", "Good Plus (G+)", "Good (G)", "Fair (F)", "Poor (P)"
-            var vg: Double?
-            var vgPlus: Double?
-            var nm: Double?
-            var mint: Double?
+            var conditionPrices: [String: DiscogsMatch.ConditionPrice] = [:]
             
             for (condition, suggestion) in suggestions {
-                let key = condition.lowercased()
-                if key.contains("near mint") {
-                    nm = suggestion.value
-                } else if key.contains("very good plus") || key.contains("vg+") {
-                    vgPlus = suggestion.value
-                } else if key.contains("very good") {
-                    vg = suggestion.value
-                } else if key.hasPrefix("mint") || key == "mint (m)" {
-                    mint = suggestion.value
-                }
+                conditionPrices[condition] = DiscogsMatch.ConditionPrice(
+                    currency: suggestion.currency,
+                    value: Decimal(suggestion.value)
+                )
             }
             
-            return ConditionPricing(
-                veryGood: vg,
-                veryGoodPlus: vgPlus,
-                nearMint: nm,
-                mint: mint
-            )
+            return conditionPrices
         } catch {
             throw DiscogsError.parsingError("Failed to decode price suggestions: \(error.localizedDescription)")
         }
@@ -536,12 +512,9 @@ final class DiscogsService {
                 )
             } ?? [],
             
-            // Pricing - use condition-based price suggestions:
-            //   VG (Very Good) → low price, VG+ → median, NM (Near Mint) → high
-            // Falls back to release endpoint's lowest_price if no suggestions available
-            lowestPrice: priceSuggestions?.veryGood.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
-            medianPrice: priceSuggestions?.veryGoodPlus.map { Decimal($0) },
-            highPrice: priceSuggestions?.nearMint.map { Decimal($0) },
+            // Pricing - use condition-based price suggestions from Discogs
+            // Returns all available condition grades (Mint, Near Mint, VG+, VG, G+, G, Fair, Poor)
+            conditionPrices: priceSuggestions,
             
             // Community stats
             numForSale: details.numForSale,
@@ -976,12 +949,9 @@ extension DiscogsService {
                         )
                     } ?? [],
                     
-                    // Pricing - use condition-based price suggestions:
-                    //   VG (Very Good) → low price, VG+ → median, NM (Near Mint) → high
-                    // Falls back to release endpoint's lowest_price if no suggestions available
-                    lowestPrice: priceSuggestions?.veryGood.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
-                    medianPrice: priceSuggestions?.veryGoodPlus.map { Decimal($0) },
-                    highPrice: priceSuggestions?.nearMint.map { Decimal($0) },
+                    // Pricing - use condition-based price suggestions from Discogs
+                    // Returns all available condition grades (Mint, Near Mint, VG+, VG, G+, G, Fair, Poor)
+                    conditionPrices: priceSuggestions,
                     
                     // Community stats
                     numForSale: details.numForSale,

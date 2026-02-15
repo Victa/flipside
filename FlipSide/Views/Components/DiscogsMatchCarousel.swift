@@ -35,9 +35,9 @@ struct DiscogsMatchCarousel: View {
 #Preview("Multiple Matches") {
     DiscogsMatchCarousel(
         matches: [
-            .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
-            .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
-            .sample(releaseId: 123458, title: "Kind of Blue (2020 Remaster)", year: 2020, matchScore: 0.78, lowestPrice: 35.00)
+            .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
+            .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
+            .sample(releaseId: 123458, title: "Kind of Blue (2020 Remaster)", year: 2020, matchScore: 0.78)
         ],
         onMatchSelected: { match, index in
             print("Selected match #\(index + 1): \(match.title)")
@@ -49,7 +49,7 @@ struct DiscogsMatchCarousel: View {
 #Preview("Single Match") {
     DiscogsMatchCarousel(
         matches: [
-            .sample(releaseId: 999999, title: "Blue Train", artist: "John Coltrane", year: 1957, matchScore: 0.92, lowestPrice: 150.00)
+            .sample(releaseId: 999999, title: "Blue Train", artist: "John Coltrane", year: 1957, matchScore: 0.92)
         ],
         onMatchSelected: { match, index in
             print("Selected match #\(index + 1): \(match.title)")
