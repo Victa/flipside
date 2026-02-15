@@ -98,7 +98,30 @@ struct HistoryView: View {
                     image: destination.image,
                     extractedData: destination.extractedData,
                     discogsMatches: destination.discogsMatches,
-                    discogsError: destination.discogsError
+                    discogsError: destination.discogsError,
+                    onMatchSelected: { match, index in
+                        // Find and update the scan's selectedMatchIndex
+                        let scanId = destination.scanId  // Capture value for Predicate macro
+                        let fetchDescriptor = FetchDescriptor<Scan>(
+                            predicate: #Predicate { $0.id == scanId }
+                        )
+                        if let scan = try? modelContext.fetch(fetchDescriptor).first {
+                            scan.selectedMatchIndex = index
+                            try? modelContext.save()
+                        }
+                        
+                        // Navigate to DetailView
+                        navigationPath.append(DetailDestination(match: match))
+                    }
+                )
+            }
+            .navigationDestination(for: DetailDestination.self) { destination in
+                DetailView(
+                    match: destination.match,
+                    onDone: {
+                        // Clear navigation path to return to HistoryView
+                        navigationPath.removeLast(navigationPath.count)
+                    }
                 )
             }
             .toolbar {
@@ -207,12 +230,43 @@ struct HistoryView: View {
                     openScan(scan)
                 } label: {
                     HStack {
-                        if let image = persistenceService.loadImage(from: scan.imagePath) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
+                        // Show Discogs artwork if a match was selected, otherwise show scanned image
+                        Group {
+                            if let selectedIndex = scan.selectedMatchIndex,
+                               selectedIndex >= 0,
+                               selectedIndex < scan.discogsMatches.count,
+                               let imageUrl = scan.discogsMatches[selectedIndex].imageUrl {
+                                // Show cached Discogs artwork
+                                CachedAsyncImage(url: imageUrl) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    ZStack {
+                                        Color.gray.opacity(0.2)
+                                        Image(systemName: "photo")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                                 .frame(width: 60, height: 60)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else if let image = persistenceService.loadImage(from: scan.imagePath) {
+                                // Fallback to scanned image
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                // Placeholder if both fail
+                                ZStack {
+                                    Color.gray.opacity(0.2)
+                                    Image(systemName: "photo")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
@@ -299,12 +353,13 @@ struct HistoryView: View {
                 confidence: extractedData.confidence
             )
             
-            // Search Discogs for matches (if token is available)
+            // Search Discogs for matches and fetch ALL details (if token is available)
             var discogsMatches: [DiscogsMatch] = []
             var discogsError: String? = nil
             if KeychainService.shared.discogsPersonalToken != nil {
                 do {
-                    discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
+                    // Use searchAndFetchDetails to get complete information including pricing
+                    discogsMatches = try await DiscogsService.shared.searchAndFetchDetails(for: extractedData)
                 } catch {
                     // Capture error message to display in UI
                     discogsError = error.localizedDescription
@@ -326,6 +381,7 @@ struct HistoryView: View {
                 // Navigate to result view
                 navigationPath.removeLast() // Remove processing view
                 navigationPath.append(ResultDestination(
+                    scanId: scan.id,
                     image: image,
                     extractedData: extractedData,
                     discogsMatches: discogsMatches,
@@ -349,23 +405,32 @@ struct HistoryView: View {
             return
         }
         
-        // Navigate to ResultView with the scan's data
-        let destination = ResultDestination(
-            image: image,
-            extractedData: scan.extractedData ?? ExtractedData(
-                artist: nil,
-                album: nil,
-                label: nil,
-                catalogNumber: nil,
-                year: nil,
-                tracks: nil,
-                rawText: "",
-                confidence: 0.0
-            ),
-            discogsMatches: scan.discogsMatches,
-            discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
-        )
-        navigationPath.append(destination)
+        // If a match was previously selected, navigate directly to DetailView
+        if let selectedIndex = scan.selectedMatchIndex,
+           selectedIndex >= 0,
+           selectedIndex < scan.discogsMatches.count {
+            let selectedMatch = scan.discogsMatches[selectedIndex]
+            navigationPath.append(DetailDestination(match: selectedMatch))
+        } else {
+            // Otherwise, navigate to ResultView (match selection)
+            let destination = ResultDestination(
+                scanId: scan.id,
+                image: image,
+                extractedData: scan.extractedData ?? ExtractedData(
+                    artist: nil,
+                    album: nil,
+                    label: nil,
+                    catalogNumber: nil,
+                    year: nil,
+                    tracks: nil,
+                    rawText: "",
+                    confidence: 0.0
+                ),
+                discogsMatches: scan.discogsMatches,
+                discogsError: scan.discogsMatches.isEmpty ? "No Discogs matches found" : nil
+            )
+            navigationPath.append(destination)
+        }
     }
     
     private func deleteScans(at offsets: IndexSet) {
@@ -399,6 +464,7 @@ struct ProcessingDestination: Hashable {
 
 struct ResultDestination: Hashable {
     let id = UUID()
+    let scanId: UUID
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
@@ -409,6 +475,19 @@ struct ResultDestination: Hashable {
     }
     
     static func == (lhs: ResultDestination, rhs: ResultDestination) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct DetailDestination: Hashable {
+    let id = UUID()
+    let match: DiscogsMatch
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: DetailDestination, rhs: DetailDestination) -> Bool {
         lhs.id == rhs.id
     }
 }

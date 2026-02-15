@@ -294,36 +294,53 @@ struct SocialContext: Codable {
 - [x] 19. Display top 3-5 matches with confidence scores
 
 ### Milestone 4: Persistence (Week 2-3)
-
 - [x] 20. Define SwiftData models (Scan with Codable structs for ExtractedData, DiscogsMatch)
 - [x] 21. Implement save/load for scans (images stored as files, paths in SwiftData)
 - [x] 22. Build HistoryView with list of past scans
 - [x] 23. Add offline viewing for saved results
 
+### Milestone 4.5: Post-Scan Flow Refactor (Week 3)
+
+**Objective:** Restructure UX to show Discogs matches in a horizontal carousel, then navigate to a dedicated Detail View for the selected release.
+
+- [x] 23a. Create DetailView showing selected Discogs release (artwork, metadata, track listing, pricing, "View on Discogs" button)
+- [x] 23b. Extract DiscogsMatchCard into separate component file (Views/Components/)
+- [x] 23c. Create horizontal DiscogsMatchCarousel component wrapping match cards
+- [x] 23d. Transform ResultView to match selection view with carousel
+- [x] 23e. Update navigation flow: add DetailDestination, wire carousel → DetailView transition
+- [x] 23f. Update openScan() logic to navigate directly to DetailView if selectedMatchIndex is set
+- [x] 23g. Test all scenarios: new scans, reopening saved scans, no matches, errors, rate limiting
+
+**Key Changes:**
+- New screen: DetailView (dedicated view for selected Discogs release)
+- ResultView becomes match selection view (carousel-focused, cleaner layout)
+- Uses existing Scan.selectedMatchIndex field (no schema changes)
+- Navigation: HistoryView → ProcessingView → MatchSelectionView → DetailView
+- Reopening saved scans: goes directly to DetailView if match was previously selected
+
 ### Milestone 5: UI Polish (Week 3)
 
-- [ ] 24. Design ResultView with match cards
-- [ ] 25. Add image comparison (scanned vs Discogs)
-- [ ] 26. Implement pricing display
-- [ ] 27. Error states and loading indicators
-- [ ] 28. Empty states for history
+- [ ] 24. Polish DetailView design (now created in Milestone 4.5)
+- [ ] 25. Add image comparison feature (scanned vs Discogs in DetailView)
+- [ ] 26. Enhance match card animations and transitions
+- [ ] 27. Refine error states and loading indicators across all views
+- [ ] 28. Add haptic feedback for interactions
 
 ### Milestone 6: Testing & Refinement (Week 3-4)
 
-- [ ] 29. Test with various vinyl types (covers, labels, different conditions)
-- [ ] 30. Test with both camera capture and photo library images
-- [ ] 31. Refine OCR prompts based on results
-- [ ] 32. Optimize match scoring algorithm
-- [ ] 33. Handle edge cases (no matches, API failures)
-- [ ] 34. Performance testing
+- [ ] 30. Test with various vinyl types (covers, labels, different conditions)
+- [ ] 31. Test with both camera capture and photo library images
+- [ ] 32. Refine OCR prompts based on results
+- [ ] 33. Optimize match scoring algorithm
+- [ ] 34. Handle edge cases (no matches, API failures)
+- [ ] 35. Performance testing
 
 ### Milestone 7: Discogs Link Integration (Week 4)
 
-- [ ] 35. Add "View on Discogs" button/link in DetailView
-- [ ] 36. Implement URL generation for Discogs release page (format: https://www.discogs.com/release/{releaseId})
-- [ ] 37. Open Discogs page in Safari using SFSafariViewController or Link
-- [ ] 38. Add visual indicator (SF Symbol: arrow.up.right.square or link icon)
-- [ ] 39. Test link opens correct release page
+- [x] 36. DetailView created with "View on Discogs" button (completed in Milestone 4.5)
+- [ ] 37. Test Discogs URL generation across various release types
+- [ ] 38. Add share functionality for Discogs links
+- [ ] 39. Implement deep linking back to app from Discogs (if feasible)
 
 ### Milestone 8: Social Context Integration (Week 4-5)
 
