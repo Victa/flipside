@@ -21,7 +21,7 @@ final class DiscogsService {
     private let maxResultsPerSearch = 10
     
     // Rate limiting configuration
-    private let rateLimitDelay: TimeInterval = 1.0 // 60 requests/minute = 1 per second
+    private let rateLimitDelay: TimeInterval = 0.2 // 60 requests/minute = 1 per second (using 0.2s for better UX)
     private var lastRequestTime: Date?
     private let rateLimitQueue = DispatchQueue(label: "com.flipside.discogs.ratelimit")
     
@@ -226,14 +226,6 @@ final class DiscogsService {
         let value: Double
     }
     
-    /// Parsed pricing from the price suggestions endpoint, mapped to condition grades
-    private struct ConditionPricing {
-        let veryGood: Double?       // VG
-        let veryGoodPlus: Double?   // VG+
-        let nearMint: Double?       // NM or M-
-        let mint: Double?           // M
-    }
-    
     // MARK: - Singleton
     
     static let shared = DiscogsService()
@@ -278,7 +270,7 @@ final class DiscogsService {
         }
         
         // Convert search results to DiscogsMatch with scoring
-        let matches = searchResults.compactMap { result -> DiscogsMatch? in
+        var matches = searchResults.compactMap { result -> (match: DiscogsMatch, catalogSimilarity: Double)? in
             guard result.type == "release" || result.type == "master" else {
                 return nil
             }
@@ -288,7 +280,14 @@ final class DiscogsService {
                 extractedData: extractedData
             )
             
-            return DiscogsMatch(
+            // Calculate catalog number similarity separately for filtering
+            var catalogSimilarity: Double = 0.0
+            if let extractedCatno = extractedData.catalogNumber,
+               let resultCatno = result.catno {
+                catalogSimilarity = stringSimilarity(extractedCatno, resultCatno)
+            }
+            
+            let match = DiscogsMatch(
                 // Basic info
                 releaseId: result.id,
                 title: result.title,
@@ -318,9 +317,7 @@ final class DiscogsService {
                 identifiers: [],
                 
                 // Pricing
-                lowestPrice: nil, // Will be fetched separately if needed
-                medianPrice: nil, // Will be fetched separately if needed
-                highPrice: nil,   // Will be fetched separately if needed
+                conditionPrices: nil, // Will be fetched separately if needed
                 
                 // Community stats
                 numForSale: nil,
@@ -335,13 +332,34 @@ final class DiscogsService {
                 resourceUrl: nil,
                 videos: []
             )
+            
+            return (match: match, catalogSimilarity: catalogSimilarity)
         }
         
-        // Sort by match score (highest first) and return top results
+        // Sort by match score (highest first)
+        matches.sort { $0.match.matchScore > $1.match.matchScore }
+        
+        // INTELLIGENT FILTERING: If we have strong catalog number matches, ONLY return those
+        // Catalog numbers are unique identifiers - if we found exact matches, ignore everything else
+        let hasCatalogNumber = extractedData.catalogNumber != nil && !extractedData.catalogNumber!.isEmpty
+        
+        if hasCatalogNumber {
+            // Check if we have any high-confidence catalog matches
+            let strongCatalogMatches = matches.filter { $0.catalogSimilarity >= 0.85 }
+            
+            if !strongCatalogMatches.isEmpty {
+                // We found catalog number matches! Only return these, ignore lower-confidence results
+                // This prevents showing unrelated records when we've found the exact pressing
+                return strongCatalogMatches
+                    .prefix(5)  // Still cap at 5 in case there are multiple pressings with same catno
+                    .map { $0.match }
+            }
+        }
+        
+        // No strong catalog matches found, return top results by overall score
         return matches
-            .sorted { $0.matchScore > $1.matchScore }
             .prefix(5)
-            .map { $0 }
+            .map { $0.match }
     }
     
     /// Fetch detailed release information including pricing
@@ -386,9 +404,9 @@ final class DiscogsService {
     /// The Discogs price_suggestions endpoint returns a dictionary keyed by condition names
     /// (e.g., "Mint (M)", "Very Good Plus (VG+)") with {currency, value} for each.
     /// - Parameter releaseId: The Discogs release ID
-    /// - Returns: ConditionPricing with prices mapped from condition grades
+    /// - Returns: Dictionary of condition names to DiscogsMatch.ConditionPrice
     /// - Throws: DiscogsError if fetch fails
-    private func fetchPriceSuggestions(releaseId: Int) async throws -> ConditionPricing {
+    private func fetchPriceSuggestions(releaseId: Int) async throws -> [String: DiscogsMatch.ConditionPrice] {
         guard let personalToken = KeychainService.shared.discogsPersonalToken else {
             throw DiscogsError.noPersonalToken
         }
@@ -419,33 +437,19 @@ final class DiscogsService {
         do {
             let suggestions = try decoder.decode([String: PriceSuggestion].self, from: data)
             
-            // Map condition keys to our structured pricing
+            // Convert all suggestions to DiscogsMatch.ConditionPrice format
             // Keys from Discogs: "Mint (M)", "Near Mint (NM or M-)", "Very Good Plus (VG+)",
             //                     "Very Good (VG)", "Good Plus (G+)", "Good (G)", "Fair (F)", "Poor (P)"
-            var vg: Double?
-            var vgPlus: Double?
-            var nm: Double?
-            var mint: Double?
+            var conditionPrices: [String: DiscogsMatch.ConditionPrice] = [:]
             
             for (condition, suggestion) in suggestions {
-                let key = condition.lowercased()
-                if key.contains("near mint") {
-                    nm = suggestion.value
-                } else if key.contains("very good plus") || key.contains("vg+") {
-                    vgPlus = suggestion.value
-                } else if key.contains("very good") {
-                    vg = suggestion.value
-                } else if key.hasPrefix("mint") || key == "mint (m)" {
-                    mint = suggestion.value
-                }
+                conditionPrices[condition] = DiscogsMatch.ConditionPrice(
+                    currency: suggestion.currency,
+                    value: Decimal(suggestion.value)
+                )
             }
             
-            return ConditionPricing(
-                veryGood: vg,
-                veryGoodPlus: vgPlus,
-                nearMint: nm,
-                mint: mint
-            )
+            return conditionPrices
         } catch {
             throw DiscogsError.parsingError("Failed to decode price suggestions: \(error.localizedDescription)")
         }
@@ -456,6 +460,110 @@ final class DiscogsService {
     /// - Returns: URL to the Discogs release page
     func generateReleaseURL(releaseId: Int) -> URL? {
         return URL(string: "https://www.discogs.com/release/\(releaseId)")
+    }
+    
+    /// Fetch complete release details including pricing for a single release
+    /// - Parameter releaseId: The Discogs release ID
+    /// - Returns: Complete DiscogsMatch with all details and pricing
+    /// - Throws: DiscogsError if fetch fails
+    func fetchCompleteReleaseDetails(releaseId: Int) async throws -> DiscogsMatch {
+        // Fetch release details
+        let details = try await fetchReleaseDetails(releaseId: releaseId)
+        
+        // Fetch price suggestions (optional)
+        var priceSuggestions: [String: DiscogsMatch.ConditionPrice]?
+        do {
+            priceSuggestions = try await fetchPriceSuggestions(releaseId: releaseId)
+        } catch {
+            // Price suggestions are optional - continue if they fail
+            print("Price suggestions unavailable for release \(releaseId): \(error)")
+        }
+        
+        // Build complete DiscogsMatch
+        return DiscogsMatch(
+            // Basic info
+            releaseId: releaseId,
+            title: details.title,
+            artist: details.artists?.first?.name ?? "",
+            year: details.year,
+            released: details.released,
+            country: details.country,
+            label: details.labels?.first?.name,
+            catalogNumber: details.labels?.first?.catno,
+            matchScore: 1.0, // User-selected match
+            
+            // Images
+            imageUrl: details.images?.first.flatMap { URL(string: $0.uri) },
+            thumbnailUrl: details.thumb.flatMap { URL(string: $0) },
+            
+            // Classification
+            genres: details.genres ?? [],
+            styles: details.styles ?? [],
+            
+            // Formats
+            formats: details.formats?.map { format in
+                DiscogsMatch.Format(
+                    name: format.name,
+                    qty: format.qty,
+                    descriptions: format.descriptions,
+                    text: format.text
+                )
+            } ?? [],
+            
+            // Tracklist
+            tracklist: details.tracklist?.map { track in
+                DiscogsMatch.TracklistItem(
+                    position: track.position,
+                    title: track.title,
+                    duration: track.duration,
+                    artists: track.artists?.map { artist in
+                        DiscogsMatch.TracklistItem.TrackArtist(
+                            name: artist.name,
+                            role: artist.role
+                        )
+                    },
+                    extraartists: track.extraartists?.map { artist in
+                        DiscogsMatch.TracklistItem.TrackArtist(
+                            name: artist.name,
+                            role: artist.role
+                        )
+                    }
+                )
+            } ?? [],
+            
+            // Identifiers
+            identifiers: details.identifiers?.map { id in
+                DiscogsMatch.Identifier(
+                    type: id.type,
+                    value: id.value,
+                    description: id.description
+                )
+            } ?? [],
+            
+            // Pricing - use condition-based price suggestions from Discogs
+            // Returns all available condition grades (Mint, Near Mint, VG+, VG, G+, G, Fair, Poor)
+            conditionPrices: priceSuggestions,
+            
+            // Community stats
+            numForSale: details.numForSale,
+            inWantlist: details.community?.want,
+            inCollection: details.community?.have,
+            
+            // Additional info
+            notes: details.notes,
+            dataQuality: details.dataQuality,
+            masterId: details.masterId,
+            uri: details.uri,
+            resourceUrl: details.resourceUrl,
+            videos: details.videos?.map { video in
+                DiscogsMatch.Video(
+                    uri: video.uri,
+                    title: video.title,
+                    description: video.description,
+                    duration: video.duration
+                )
+            } ?? []
+        )
     }
     
     // MARK: - Private Methods
@@ -799,7 +907,7 @@ extension DiscogsService {
                 let details = try await fetchReleaseDetails(releaseId: match.releaseId)
                 
                 // Fetch price suggestions by condition grade (VG, VG+, NM, M)
-                var priceSuggestions: ConditionPricing?
+                var priceSuggestions: [String: DiscogsMatch.ConditionPrice]?
                 do {
                     priceSuggestions = try await fetchPriceSuggestions(releaseId: match.releaseId)
                 } catch {
@@ -869,12 +977,9 @@ extension DiscogsService {
                         )
                     } ?? [],
                     
-                    // Pricing - use condition-based price suggestions:
-                    //   VG (Very Good) → low price, VG+ → median, NM (Near Mint) → high
-                    // Falls back to release endpoint's lowest_price if no suggestions available
-                    lowestPrice: priceSuggestions?.veryGood.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
-                    medianPrice: priceSuggestions?.veryGoodPlus.map { Decimal($0) },
-                    highPrice: priceSuggestions?.nearMint.map { Decimal($0) },
+                    // Pricing - use condition-based price suggestions from Discogs
+                    // Returns all available condition grades (Mint, Near Mint, VG+, VG, G+, G, Fair, Poor)
+                    conditionPrices: priceSuggestions,
                     
                     // Community stats
                     numForSale: details.numForSale,

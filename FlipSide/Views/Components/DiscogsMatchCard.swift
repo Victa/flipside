@@ -132,7 +132,9 @@ struct DiscogsMatchCard: View {
                 }
                 
                 // Pricing info (if available)
-                if let lowestPrice = match.lowestPrice {
+                // Show the lowest available price from any condition
+                if let conditionPrices = match.conditionPrices,
+                   let lowestPrice = conditionPrices.values.map({ $0.value }).min() {
                     HStack {
                         Image(systemName: "tag.fill")
                             .font(.caption)
@@ -186,13 +188,13 @@ struct DiscogsMatchCard: View {
 #Preview {
     VStack(spacing: 16) {
         DiscogsMatchCard(
-            match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95, lowestPrice: 29.99),
+            match: .sample(releaseId: 123456, title: "Kind of Blue", year: 1959, matchScore: 0.95),
             rank: 1
         )
         .padding()
         
         DiscogsMatchCard(
-            match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82, lowestPrice: 19.99),
+            match: .sample(releaseId: 123457, title: "Kind of Blue (Reissue)", year: 1997, matchScore: 0.82),
             rank: 2
         )
         .padding()

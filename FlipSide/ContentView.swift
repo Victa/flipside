@@ -28,6 +28,7 @@ struct HistoryView: View {
     @State private var isProcessing = false
     @State private var currentImage: UIImage?
     @State private var currentExtractedData: ExtractedData?
+    @State private var currentProcessingStep: ProcessingStep = .readingImage
     
     // Services
     private let keychainService = KeychainService.shared
@@ -88,7 +89,7 @@ struct HistoryView: View {
             }
             .navigationTitle("Flip Side")
             .navigationDestination(for: ProcessingDestination.self) { destination in
-                ProcessingView(image: destination.image)
+                ProcessingView(image: destination.image, currentStep: currentProcessingStep)
                     .task {
                         await performExtraction(image: destination.image)
                     }
@@ -111,13 +112,14 @@ struct HistoryView: View {
                         }
                         
                         // Navigate to DetailView
-                        navigationPath.append(DetailDestination(match: match))
+                        navigationPath.append(DetailDestination(match: match, scanId: destination.scanId))
                     }
                 )
             }
             .navigationDestination(for: DetailDestination.self) { destination in
                 DetailView(
                     match: destination.match,
+                    scanId: destination.scanId,
                     onDone: {
                         // Clear navigation path to return to HistoryView
                         navigationPath.removeLast(navigationPath.count)
@@ -331,11 +333,17 @@ struct HistoryView: View {
     private func handleImageCaptured(_ image: UIImage) {
         // Navigate to processing view
         currentImage = image
+        currentProcessingStep = .readingImage
         navigationPath.append(ProcessingDestination(image: image))
     }
     
     private func performExtraction(image: UIImage) async {
         isProcessing = true
+        
+        // Reset to first step
+        await MainActor.run {
+            currentProcessingStep = .readingImage
+        }
         
         do {
             // Call VisionService to extract vinyl info
@@ -353,13 +361,18 @@ struct HistoryView: View {
                 confidence: extractedData.confidence
             )
             
-            // Search Discogs for matches and fetch ALL details (if token is available)
+            // Move to Discogs search step
+            await MainActor.run {
+                currentProcessingStep = .searchingDiscogs
+            }
+            
+            // Search Discogs for matches (basic data only, details fetched on-demand in DetailView)
             var discogsMatches: [DiscogsMatch] = []
             var discogsError: String? = nil
             if KeychainService.shared.discogsPersonalToken != nil {
                 do {
-                    // Use searchAndFetchDetails to get complete information including pricing
-                    discogsMatches = try await DiscogsService.shared.searchAndFetchDetails(for: extractedData)
+                    // Use searchReleases for fast basic search (3-5x faster than searchAndFetchDetails)
+                    discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
                 } catch {
                     // Capture error message to display in UI
                     discogsError = error.localizedDescription
@@ -410,7 +423,7 @@ struct HistoryView: View {
            selectedIndex >= 0,
            selectedIndex < scan.discogsMatches.count {
             let selectedMatch = scan.discogsMatches[selectedIndex]
-            navigationPath.append(DetailDestination(match: selectedMatch))
+            navigationPath.append(DetailDestination(match: selectedMatch, scanId: scan.id))
         } else {
             // Otherwise, navigate to ResultView (match selection)
             let destination = ResultDestination(
@@ -482,6 +495,7 @@ struct ResultDestination: Hashable {
 struct DetailDestination: Hashable {
     let id = UUID()
     let match: DiscogsMatch
+    let scanId: UUID?
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

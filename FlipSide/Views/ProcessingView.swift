@@ -7,8 +7,14 @@
 
 import SwiftUI
 
+enum ProcessingStep {
+    case readingImage
+    case searchingDiscogs
+}
+
 struct ProcessingView: View {
     let image: UIImage
+    let currentStep: ProcessingStep
     
     var body: some View {
         VStack(spacing: 20) {
@@ -29,14 +35,18 @@ struct ProcessingView: View {
             Text("Analyzing vinyl record...")
                 .font(.headline)
             
-            VStack(spacing: 4) {
-                Text("Reading text from image")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                ProcessingStepRow(
+                    title: "Reading text from image",
+                    step: .readingImage,
+                    currentStep: currentStep
+                )
                 
-                Text("Searching Discogs database")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                ProcessingStepRow(
+                    title: "Searching Discogs database",
+                    step: .searchingDiscogs,
+                    currentStep: currentStep
+                )
             }
         }
         .padding()
@@ -45,8 +55,55 @@ struct ProcessingView: View {
     }
 }
 
+struct ProcessingStepRow: View {
+    let title: String
+    let step: ProcessingStep
+    let currentStep: ProcessingStep
+    
+    private var isCurrentStep: Bool {
+        step == currentStep
+    }
+    
+    private var isCompleted: Bool {
+        switch (step, currentStep) {
+        case (.readingImage, .searchingDiscogs):
+            return true
+        default:
+            return false
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Status icon
+            Group {
+                if isCompleted {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else if isCurrentStep {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 20, height: 20)
+            
+            // Step title
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(isCurrentStep ? .primary : .secondary)
+                .fontWeight(isCurrentStep ? .medium : .regular)
+            
+            Spacer()
+        }
+        .padding(.horizontal)
+    }
+}
+
 #Preview {
     NavigationStack {
-        ProcessingView(image: UIImage(systemName: "photo")!)
+        ProcessingView(image: UIImage(systemName: "photo")!, currentStep: .readingImage)
     }
 }
