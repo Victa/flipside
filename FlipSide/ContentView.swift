@@ -28,6 +28,7 @@ struct HistoryView: View {
     @State private var isProcessing = false
     @State private var currentImage: UIImage?
     @State private var currentExtractedData: ExtractedData?
+    @State private var currentProcessingStep: ProcessingStep = .readingImage
     
     // Services
     private let keychainService = KeychainService.shared
@@ -88,7 +89,7 @@ struct HistoryView: View {
             }
             .navigationTitle("Flip Side")
             .navigationDestination(for: ProcessingDestination.self) { destination in
-                ProcessingView(image: destination.image)
+                ProcessingView(image: destination.image, currentStep: currentProcessingStep)
                     .task {
                         await performExtraction(image: destination.image)
                     }
@@ -332,11 +333,17 @@ struct HistoryView: View {
     private func handleImageCaptured(_ image: UIImage) {
         // Navigate to processing view
         currentImage = image
+        currentProcessingStep = .readingImage
         navigationPath.append(ProcessingDestination(image: image))
     }
     
     private func performExtraction(image: UIImage) async {
         isProcessing = true
+        
+        // Reset to first step
+        await MainActor.run {
+            currentProcessingStep = .readingImage
+        }
         
         do {
             // Call VisionService to extract vinyl info
@@ -353,6 +360,11 @@ struct HistoryView: View {
                 rawText: extractedData.rawText,
                 confidence: extractedData.confidence
             )
+            
+            // Move to Discogs search step
+            await MainActor.run {
+                currentProcessingStep = .searchingDiscogs
+            }
             
             // Search Discogs for matches (basic data only, details fetched on-demand in DetailView)
             var discogsMatches: [DiscogsMatch] = []
