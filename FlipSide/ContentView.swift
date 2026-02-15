@@ -111,13 +111,14 @@ struct HistoryView: View {
                         }
                         
                         // Navigate to DetailView
-                        navigationPath.append(DetailDestination(match: match))
+                        navigationPath.append(DetailDestination(match: match, scanId: destination.scanId))
                     }
                 )
             }
             .navigationDestination(for: DetailDestination.self) { destination in
                 DetailView(
                     match: destination.match,
+                    scanId: destination.scanId,
                     onDone: {
                         // Clear navigation path to return to HistoryView
                         navigationPath.removeLast(navigationPath.count)
@@ -353,13 +354,13 @@ struct HistoryView: View {
                 confidence: extractedData.confidence
             )
             
-            // Search Discogs for matches and fetch ALL details (if token is available)
+            // Search Discogs for matches (basic data only, details fetched on-demand in DetailView)
             var discogsMatches: [DiscogsMatch] = []
             var discogsError: String? = nil
             if KeychainService.shared.discogsPersonalToken != nil {
                 do {
-                    // Use searchAndFetchDetails to get complete information including pricing
-                    discogsMatches = try await DiscogsService.shared.searchAndFetchDetails(for: extractedData)
+                    // Use searchReleases for fast basic search (3-5x faster than searchAndFetchDetails)
+                    discogsMatches = try await DiscogsService.shared.searchReleases(for: extractedData)
                 } catch {
                     // Capture error message to display in UI
                     discogsError = error.localizedDescription
@@ -410,7 +411,7 @@ struct HistoryView: View {
            selectedIndex >= 0,
            selectedIndex < scan.discogsMatches.count {
             let selectedMatch = scan.discogsMatches[selectedIndex]
-            navigationPath.append(DetailDestination(match: selectedMatch))
+            navigationPath.append(DetailDestination(match: selectedMatch, scanId: scan.id))
         } else {
             // Otherwise, navigate to ResultView (match selection)
             let destination = ResultDestination(
@@ -482,6 +483,7 @@ struct ResultDestination: Hashable {
 struct DetailDestination: Hashable {
     let id = UUID()
     let match: DiscogsMatch
+    let scanId: UUID?
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

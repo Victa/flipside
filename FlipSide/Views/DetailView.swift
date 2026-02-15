@@ -6,13 +6,26 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct DetailView: View {
     let match: DiscogsMatch
+    let scanId: UUID?
     let onDone: () -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.openURL) private var openURL
+    @Environment(\.modelContext) private var modelContext
+    
+    // Async loading state
+    @State private var completeMatch: DiscogsMatch?
+    @State private var isLoadingDetails = false
+    @State private var loadError: String?
+    
+    // Use complete match if available, otherwise use basic match
+    private var displayMatch: DiscogsMatch {
+        completeMatch ?? match
+    }
     
     var body: some View {
         ScrollView {
@@ -22,6 +35,11 @@ struct DetailView: View {
                     offlineIndicatorBanner
                 }
                 
+                // Loading indicator
+                if isLoadingDetails {
+                    loadingDetailsSection
+                }
+                
                 // Album artwork
                 albumArtworkSection
                 
@@ -29,47 +47,47 @@ struct DetailView: View {
                 releaseInformationSection
                 
                 // Genres
-                if !match.genres.isEmpty {
+                if !displayMatch.genres.isEmpty {
                     genresSection
                 }
                 
                 // Styles (more specific than genres)
-                if !match.styles.isEmpty {
+                if !displayMatch.styles.isEmpty {
                     stylesSection
                 }
                 
                 // Formats (vinyl size, speed, etc.)
-                if !match.formats.isEmpty {
+                if !displayMatch.formats.isEmpty {
                     formatsSection
                 }
                 
                 // Tracklist
-                if !match.tracklist.isEmpty {
+                if !displayMatch.tracklist.isEmpty {
                     tracklistSection
                 }
                 
                 // Community stats
-                if match.inCollection != nil || match.inWantlist != nil || match.numForSale != nil {
+                if displayMatch.inCollection != nil || displayMatch.inWantlist != nil || displayMatch.numForSale != nil {
                     communityStatsSection
                 }
                 
                 // Pricing information
-                if match.lowestPrice != nil || match.medianPrice != nil || match.highPrice != nil {
+                if displayMatch.lowestPrice != nil || displayMatch.medianPrice != nil || displayMatch.highPrice != nil {
                     pricingSection
                 }
                 
                 // Identifiers (barcodes, matrix numbers)
-                if !match.identifiers.isEmpty {
+                if !displayMatch.identifiers.isEmpty {
                     identifiersSection
                 }
                 
                 // Videos
-                if !match.videos.isEmpty {
+                if !displayMatch.videos.isEmpty {
                     videosSection
                 }
                 
                 // Notes
-                if let notes = match.notes, !notes.isEmpty {
+                if let notes = displayMatch.notes, !notes.isEmpty {
                     notesSection
                 }
                 
@@ -80,6 +98,9 @@ struct DetailView: View {
         }
         .navigationTitle("Release Details")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadCompleteDetailsIfNeeded()
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Done") {
@@ -107,11 +128,80 @@ struct DetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
+    // MARK: - Loading Details Section
+    
+    private var loadingDetailsSection: some View {
+        HStack(spacing: 12) {
+            ProgressView()
+            Text("Loading complete details...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Async Loading Functions
+    
+    private func loadCompleteDetailsIfNeeded() async {
+        // Skip if already complete (has tracklist/formats)
+        guard displayMatch.tracklist.isEmpty || displayMatch.formats.isEmpty else {
+            completeMatch = match
+            return
+        }
+        
+        // Skip if offline
+        guard networkMonitor.isConnected else {
+            completeMatch = match
+            return
+        }
+        
+        isLoadingDetails = true
+        
+        do {
+            let complete = try await DiscogsService.shared.fetchCompleteReleaseDetails(releaseId: displayMatch.releaseId)
+            
+            await MainActor.run {
+                completeMatch = complete
+                isLoadingDetails = false
+                
+                // Update cached scan if available
+                updateCachedScan(with: complete)
+            }
+        } catch {
+            await MainActor.run {
+                loadError = error.localizedDescription
+                isLoadingDetails = false
+                // Use basic match as fallback
+                completeMatch = match
+            }
+        }
+    }
+    
+    private func updateCachedScan(with completeMatch: DiscogsMatch) {
+        guard let scanId = scanId else { return }
+        
+        let fetchDescriptor = FetchDescriptor<Scan>(
+            predicate: #Predicate { $0.id == scanId }
+        )
+        
+        if let scan = try? modelContext.fetch(fetchDescriptor).first,
+           let selectedIndex = scan.selectedMatchIndex,
+           selectedIndex < scan.discogsMatches.count {
+            // Replace the basic match with complete match
+            scan.discogsMatches[selectedIndex] = completeMatch
+            try? modelContext.save()
+        }
+    }
+    
     // MARK: - Album Artwork Section
     
     private var albumArtworkSection: some View {
         VStack {
-            if let imageUrl = match.imageUrl {
+            if let imageUrl = displayMatch.imageUrl {
                 AsyncImage(url: imageUrl) { phase in
                     switch phase {
                     case .empty:
@@ -173,19 +263,19 @@ struct DetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Title and Artist
             VStack(alignment: .leading, spacing: 4) {
-                Text(match.title)
+                Text(displayMatch.title)
                     .font(.title2)
                     .fontWeight(.bold)
                     .lineLimit(3)
                 
-                Text(match.artist)
+                Text(displayMatch.artist)
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
             
             // Metadata (Year, Label, Catalog Number, Country, etc.)
             VStack(alignment: .leading, spacing: 8) {
-                if let year = match.year {
+                if let year = displayMatch.year {
                     metadataRow(
                         icon: "calendar",
                         label: "Year",
@@ -193,7 +283,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let released = match.released {
+                if let released = displayMatch.released {
                     metadataRow(
                         icon: "calendar.badge.clock",
                         label: "Released",
@@ -201,7 +291,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let country = match.country {
+                if let country = displayMatch.country {
                     metadataRow(
                         icon: "globe",
                         label: "Country",
@@ -209,7 +299,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let label = match.label {
+                if let label = displayMatch.label {
                     metadataRow(
                         icon: "building.2",
                         label: "Label",
@@ -217,7 +307,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let catalogNumber = match.catalogNumber {
+                if let catalogNumber = displayMatch.catalogNumber {
                     metadataRow(
                         icon: "number",
                         label: "Catalog #",
@@ -258,7 +348,7 @@ struct DetailView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(match.genres, id: \.self) { genre in
+                    ForEach(displayMatch.genres, id: \.self) { genre in
                         Text(genre)
                             .font(.subheadline)
                             .padding(.horizontal, 12)
@@ -281,7 +371,7 @@ struct DetailView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(match.styles, id: \.self) { style in
+                    ForEach(displayMatch.styles, id: \.self) { style in
                         Text(style)
                             .font(.subheadline)
                             .padding(.horizontal, 12)
@@ -303,7 +393,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(match.formats.enumerated()), id: \.offset) { _, format in
+                ForEach(Array(displayMatch.formats.enumerated()), id: \.offset) { _, format in
                     HStack {
                         Image(systemName: "opticaldisc")
                             .font(.subheadline)
@@ -352,7 +442,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(match.tracklist.enumerated()), id: \.offset) { _, track in
+                ForEach(Array(displayMatch.tracklist.enumerated()), id: \.offset) { _, track in
                     HStack(alignment: .top) {
                         // Position
                         Text(track.position)
@@ -384,7 +474,7 @@ struct DetailView: View {
                     }
                     .padding(.vertical, 4)
                     
-                    if track != match.tracklist.last {
+                    if track != displayMatch.tracklist.last {
                         Divider()
                     }
                 }
@@ -404,7 +494,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(spacing: 8) {
-                if let have = match.inCollection {
+                if let have = displayMatch.inCollection {
                     HStack {
                         Image(systemName: "person.2.fill")
                             .font(.subheadline)
@@ -422,7 +512,7 @@ struct DetailView: View {
                     }
                 }
                 
-                if let want = match.inWantlist {
+                if let want = displayMatch.inWantlist {
                     HStack {
                         Image(systemName: "heart.fill")
                             .font(.subheadline)
@@ -440,7 +530,7 @@ struct DetailView: View {
                     }
                 }
                 
-                if let forSale = match.numForSale {
+                if let forSale = displayMatch.numForSale {
                     HStack {
                         Image(systemName: "cart.fill")
                             .font(.subheadline)
@@ -473,7 +563,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(spacing: 8) {
-                if let lowestPrice = match.lowestPrice {
+                if let lowestPrice = displayMatch.lowestPrice {
                     pricingRow(
                         icon: "tag.fill",
                         iconColor: .green,
@@ -483,7 +573,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let medianPrice = match.medianPrice {
+                if let medianPrice = displayMatch.medianPrice {
                     pricingRow(
                         icon: "chart.bar.fill",
                         iconColor: .blue,
@@ -493,7 +583,7 @@ struct DetailView: View {
                     )
                 }
                 
-                if let highPrice = match.highPrice {
+                if let highPrice = displayMatch.highPrice {
                     pricingRow(
                         icon: "arrow.up.circle.fill",
                         iconColor: .orange,
@@ -504,7 +594,7 @@ struct DetailView: View {
                 }
                 
                 // Show when no condition-based pricing is available but we have some price
-                if match.lowestPrice != nil || match.medianPrice != nil || match.highPrice != nil {
+                if displayMatch.lowestPrice != nil || displayMatch.medianPrice != nil || displayMatch.highPrice != nil {
                     Text("Based on Discogs marketplace sales data")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
@@ -554,7 +644,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(match.identifiers.enumerated()), id: \.offset) { _, identifier in
+                ForEach(Array(displayMatch.identifiers.enumerated()), id: \.offset) { _, identifier in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(identifier.type)
                             .font(.caption)
@@ -573,7 +663,7 @@ struct DetailView: View {
                     }
                     .padding(.vertical, 4)
                     
-                    if identifier != match.identifiers.last {
+                    if identifier != displayMatch.identifiers.last {
                         Divider()
                     }
                 }
@@ -593,7 +683,7 @@ struct DetailView: View {
                 .font(.headline)
             
             VStack(spacing: 12) {
-                ForEach(Array(match.videos.enumerated()), id: \.offset) { _, video in
+                ForEach(Array(displayMatch.videos.enumerated()), id: \.offset) { _, video in
                     Button {
                         if let url = URL(string: video.uri) {
                             openURL(url)
@@ -648,7 +738,7 @@ struct DetailView: View {
             Text("Notes")
                 .font(.headline)
             
-            Text(match.notes ?? "")
+            Text(displayMatch.notes ?? "")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding()
@@ -663,7 +753,7 @@ struct DetailView: View {
     
     private var viewOnDiscogsButton: some View {
         Button {
-            if let url = DiscogsService.shared.generateReleaseURL(releaseId: match.releaseId) {
+            if let url = DiscogsService.shared.generateReleaseURL(releaseId: displayMatch.releaseId) {
                 openURL(url)
             }
         } label: {
@@ -709,11 +799,11 @@ struct DetailView: View {
     // MARK: - Computed Properties
     
     private var confidenceText: String {
-        String(format: "%.0f%% match", match.matchScore * 100)
+        String(format: "%.0f%% match", displayMatch.matchScore * 100)
     }
     
     private var confidenceColor: Color {
-        switch match.matchScore {
+        switch displayMatch.matchScore {
         case 0.8...1.0: return .green
         case 0.6..<0.8: return .orange
         default: return .red
@@ -721,7 +811,7 @@ struct DetailView: View {
     }
     
     private var confidenceIcon: String {
-        switch match.matchScore {
+        switch displayMatch.matchScore {
         case 0.8...1.0: return "checkmark.circle.fill"
         case 0.6..<0.8: return "exclamationmark.circle.fill"
         default: return "questionmark.circle.fill"
@@ -781,6 +871,7 @@ struct DetailView: View {
                     DiscogsMatch.Video(uri: "https://www.youtube.com/watch?v=example", title: "So What - Music Video", description: "Official", duration: 562)
                 ]
             ),
+            scanId: nil,
             onDone: {
                 print("Done tapped")
             }
