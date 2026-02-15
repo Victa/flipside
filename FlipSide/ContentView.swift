@@ -2,8 +2,60 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    @StateObject private var authService = DiscogsAuthService.shared
+
+    @State private var requiresOnboardingCompletion = false
+
+    private let keychainService = KeychainService.shared
+
     var body: some View {
-        AppRootTabView()
+        Group {
+            if shouldShowOnboarding {
+                OnboardingFlowView(
+                    onCompleted: handleOnboardingCompleted,
+                    onCredentialsChanged: refreshFlowState
+                )
+            } else {
+                AppRootTabView(onCredentialsChanged: refreshFlowState)
+            }
+        }
+        .onAppear {
+            refreshFlowState()
+        }
+        .onChange(of: authService.isConnected) { _, _ in
+            refreshFlowState()
+        }
+    }
+
+    private var hasDiscogsConnection: Bool {
+        let token = keychainService.discogsOAuthToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let secret = keychainService.discogsOAuthTokenSecret?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let username = keychainService.discogsUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !token.isEmpty && !secret.isEmpty && !username.isEmpty
+    }
+
+    private var hasOpenAIKey: Bool {
+        guard let key = keychainService.openAIAPIKey?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !key.isEmpty
+    }
+
+    private var shouldShowOnboarding: Bool {
+        !hasDiscogsConnection || !hasOpenAIKey || requiresOnboardingCompletion
+    }
+
+    private func refreshFlowState() {
+        authService.refreshPublishedState()
+
+        if !hasDiscogsConnection || !hasOpenAIKey {
+            requiresOnboardingCompletion = true
+        }
+    }
+
+    private func handleOnboardingCompleted() {
+        requiresOnboardingCompletion = false
+        refreshFlowState()
     }
 }
 
@@ -26,8 +78,11 @@ struct AppRootTabView: View {
     @State private var currentProcessingStep: ProcessingStep = .readingImage
 
     private let keychainService = KeychainService.shared
+    private let onCredentialsChanged: () -> Void
 
-    init() {
+    init(onCredentialsChanged: @escaping () -> Void = {}) {
+        self.onCredentialsChanged = onCredentialsChanged
+
         let collectionRaw = LibraryListType.collection.rawValue
         let wantlistRaw = LibraryListType.wantlist.rawValue
         _collectionEntries = Query(
@@ -154,8 +209,9 @@ struct AppRootTabView: View {
             }
             .sheet(isPresented: $showingSettings, onDismiss: {
                 updateAPIKeyStatus()
+                onCredentialsChanged()
             }) {
-                SettingsView()
+                SettingsView(onCredentialsChanged: onCredentialsChanged)
             }
             .alert(isPresented: $showAlert) {
                 Alert(
@@ -170,7 +226,6 @@ struct AppRootTabView: View {
             }
             .onAppear {
                 updateAPIKeyStatus()
-                checkFirstRun()
             }
         }
     }
@@ -216,12 +271,6 @@ struct AppRootTabView: View {
 
     private func updateAPIKeyStatus() {
         isAPIKeyConfigured = keychainService.openAIAPIKey != nil
-    }
-
-    private func checkFirstRun() {
-        if keychainService.openAIAPIKey == nil {
-            showingSettings = true
-        }
     }
 
     private func handleImageCaptured(_ image: UIImage) {

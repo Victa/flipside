@@ -8,21 +8,26 @@ struct SettingsView: View {
     @StateObject private var libraryViewModel = DiscogsLibraryViewModel.shared
     @StateObject private var authService = DiscogsAuthService.shared
 
-    @State private var openAIAPIKey: String = ""
-    @State private var showingSaveAlert = false
-    @State private var saveAlertMessage = ""
-    @State private var saveAlertTitle = "Success"
-    @State private var isSavingOpenAI = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    @State private var alertTitle = "Error"
     @State private var isRefreshingLibrary = false
     @State private var refreshStatusMessage: String?
     @State private var refreshStatusStyle: Color = .secondary
+    @State private var showingDisconnectConfirmation = false
+
     private let keychainService = KeychainService.shared
+    private let cacheService = SwiftDataLibraryCache.shared
+
+    let onCredentialsChanged: () -> Void
+
+    init(onCredentialsChanged: @escaping () -> Void = {}) {
+        self.onCredentialsChanged = onCredentialsChanged
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                discogsConnectionSection
-
                 Section {
                     Button(action: refreshLibrary) {
                         HStack {
@@ -47,75 +52,25 @@ struct SettingsView: View {
 
                     refreshTimestampRow
                 } header: {
-                    Text("Library Sync")
+                    Text("Refresh Data")
                 } footer: {
                     Text("Syncs your Discogs collection and wantlist into the local cache.")
                         .font(.caption)
                 }
 
                 Section {
-                    SecureField("Enter your OpenAI API key", text: $openAIAPIKey)
-                        .textContentType(.password)
-                        .autocorrectionDisabled()
-
-                    HStack {
-                        Text("Current Status:")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        if keychainService.openAIAPIKey != nil {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Saved")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                            Text("Not set")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .font(.caption)
-
-                    Button(action: saveOpenAIKey) {
+                    Button(role: .destructive) {
+                        showingDisconnectConfirmation = true
+                    } label: {
                         HStack {
                             Spacer()
-                            if isSavingOpenAI {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .padding(.trailing, 8)
-                            }
-                            Text("Save OpenAI Key")
+                            Text("Disconnect Discogs + Remove OpenAI Key")
                                 .fontWeight(.semibold)
                             Spacer()
                         }
                     }
-                    .disabled(openAIAPIKey.isEmpty || isSavingOpenAI)
-                } header: {
-                    Text("OpenAI API Key")
                 } footer: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Required for vinyl record text extraction using GPT-4o-mini Vision.")
-                        Link("Get your API key from OpenAI", destination: URL(string: "https://platform.openai.com/api-keys")!)
-                            .font(.caption)
-                    }
-                }
-
-                Section {
-                    Button(role: .destructive, action: clearAllKeys) {
-                        HStack {
-                            Spacer()
-                            Text("Clear All Keys")
-                            Spacer()
-                        }
-                    }
-                    .disabled(
-                        keychainService.openAIAPIKey == nil &&
-                        keychainService.discogsOAuthToken == nil &&
-                        keychainService.discogsOAuthTokenSecret == nil &&
-                        keychainService.discogsUsername == nil
-                    )
-                } footer: {
-                    Text("This removes OpenAI and Discogs OAuth credentials from secure storage.")
+                    Text("This also clears cached collection and wantlist data from this device.")
                         .font(.caption)
                 }
             }
@@ -128,68 +83,29 @@ struct SettingsView: View {
                     }
                 }
             }
-            .alert(saveAlertTitle, isPresented: $showingSaveAlert) {
+            .alert(alertTitle, isPresented: $showingAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(saveAlertMessage)
+                Text(alertMessage)
+            }
+            .confirmationDialog(
+                "Disconnect Discogs and remove your OpenAI key?",
+                isPresented: $showingDisconnectConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Disconnect and Clear Data", role: .destructive) {
+                    disconnectAndClearAllData()
+                }
+
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove Discogs credentials, remove your OpenAI key, and clear cached collection/wantlist data.")
             }
             .onAppear {
-                loadCurrentValues()
                 authService.refreshPublishedState()
+                libraryViewModel.prepareState(listType: .collection, modelContext: modelContext)
+                libraryViewModel.prepareState(listType: .wantlist, modelContext: modelContext)
             }
-        }
-    }
-
-    private var discogsConnectionSection: some View {
-        Section {
-            HStack {
-                Text("Current Status:")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if authService.isConnected, let username = authService.currentUsername {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Connected as \(username)")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Not connected")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.caption)
-
-            if authService.isConnected {
-                Button(role: .destructive, action: disconnectDiscogs) {
-                    HStack {
-                        Spacer()
-                        Text("Disconnect Discogs")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
-                }
-            } else {
-                Button(action: connectDiscogs) {
-                    HStack {
-                        Spacer()
-                        if authService.isConnecting {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .padding(.trailing, 8)
-                        }
-                        Text("Connect Discogs")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
-                }
-                .disabled(authService.isConnecting)
-            }
-        } header: {
-            Text("Discogs Account")
-        } footer: {
-            Text("Connect once with OAuth to search releases and manage collection/wantlist.")
-                .font(.caption)
         }
     }
 
@@ -216,43 +132,6 @@ struct SettingsView: View {
         .font(.caption)
     }
 
-    private func loadCurrentValues() {
-        openAIAPIKey = ""
-    }
-
-    private func connectDiscogs() {
-        Task {
-            do {
-                try await authService.connect()
-                await MainActor.run {
-                    saveAlertTitle = "Connected"
-                    saveAlertMessage = "Discogs account connected successfully."
-                    showingSaveAlert = true
-                }
-            } catch {
-                await MainActor.run {
-                    saveAlertTitle = "Error"
-                    saveAlertMessage = "Failed to connect Discogs account: \(error.localizedDescription)"
-                    showingSaveAlert = true
-                }
-            }
-        }
-    }
-
-    private func disconnectDiscogs() {
-        do {
-            try authService.disconnect()
-            saveAlertTitle = "Disconnected"
-            saveAlertMessage = "Discogs account has been disconnected."
-            showingSaveAlert = true
-            refreshStatusMessage = nil
-        } catch {
-            saveAlertTitle = "Error"
-            saveAlertMessage = "Failed to disconnect Discogs account: \(error.localizedDescription)"
-            showingSaveAlert = true
-        }
-    }
-
     private func refreshLibrary() {
         isRefreshingLibrary = true
         refreshStatusMessage = "Refresh in progress..."
@@ -274,45 +153,21 @@ struct SettingsView: View {
         }
     }
 
-    private func saveOpenAIKey() {
-        isSavingOpenAI = true
-
-        Task {
-            do {
-                try keychainService.setOpenAIAPIKey(openAIAPIKey)
-
-                await MainActor.run {
-                    isSavingOpenAI = false
-                    saveAlertTitle = "Success"
-                    saveAlertMessage = "OpenAI API key has been saved securely."
-                    showingSaveAlert = true
-                    openAIAPIKey = ""
-                }
-            } catch {
-                await MainActor.run {
-                    isSavingOpenAI = false
-                    saveAlertTitle = "Error"
-                    saveAlertMessage = "Failed to save OpenAI key: \(error.localizedDescription)"
-                    showingSaveAlert = true
-                }
-            }
-        }
-    }
-
-    private func clearAllKeys() {
+    private func disconnectAndClearAllData() {
         do {
-            try keychainService.deleteAll()
+            try authService.disconnect()
+            try keychainService.delete(.openAIAPIKey)
+            try cacheService.clearLibraryData(in: modelContext)
 
-            openAIAPIKey = ""
+            libraryViewModel.resetLibraryState()
             refreshStatusMessage = nil
             authService.refreshPublishedState()
-            saveAlertTitle = "Cleared"
-            saveAlertMessage = "All saved credentials have been removed from secure storage."
-            showingSaveAlert = true
+            onCredentialsChanged()
+            dismiss()
         } catch {
-            saveAlertTitle = "Error"
-            saveAlertMessage = "Failed to clear credentials: \(error.localizedDescription)"
-            showingSaveAlert = true
+            alertTitle = "Error"
+            alertMessage = "Failed to reset credentials and cached data: \(error.localizedDescription)"
+            showingAlert = true
         }
     }
 }

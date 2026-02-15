@@ -95,6 +95,16 @@ final class SwiftDataLibraryCache {
         return try modelContext.fetch(descriptor).first?.lastRefreshedAt
     }
 
+    func clearLibraryData(in modelContext: ModelContext) throws {
+        let entries = try modelContext.fetch(FetchDescriptor<LibraryEntry>())
+        let syncStates = try modelContext.fetch(FetchDescriptor<LibrarySyncState>())
+
+        entries.forEach { modelContext.delete($0) }
+        syncStates.forEach { modelContext.delete($0) }
+
+        try modelContext.save()
+    }
+
     private func updateLastRefreshDate(
         _ date: Date,
         for listType: LibraryListType,
