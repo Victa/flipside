@@ -11,6 +11,7 @@ import SwiftData
 struct DetailView: View {
     let match: DiscogsMatch
     let scanId: UUID?
+    let showDoneButton: Bool
     let onDone: () -> Void
     
     @StateObject private var viewModel = DetailViewModel()
@@ -168,11 +169,13 @@ struct DetailView: View {
             await loadCollectionStatus(forceRefresh: false)
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    onDone()
+            if showDoneButton {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        onDone()
+                    }
+                    .fontWeight(.semibold)
                 }
-                .fontWeight(.semibold)
             }
         }
     }
@@ -1412,6 +1415,7 @@ struct DetailView: View {
                 ]
             ),
             scanId: nil,
+            showDoneButton: true,
             onDone: {
                 print("Done tapped")
             }

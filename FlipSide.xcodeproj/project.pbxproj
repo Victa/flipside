@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -58,7 +58,7 @@
 
 /* Begin PBXFileReference section */
 		049BECCA03245E1C9D2B7D8C /* DiscogsAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsAuthService.swift; sourceTree = "<group>"; };
-		0897CB13D157709A3715EC28 /* DiscogsSecrets.xcconfig.example */ = {isa = PBXFileReference; path = DiscogsSecrets.xcconfig.example; sourceTree = "<group>"; };
+		0897CB13D157709A3715EC28 /* DiscogsSecrets.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = DiscogsSecrets.xcconfig.example; sourceTree = "<group>"; };
 		0C63E78F83F1BF3644DEF914 /* LibraryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryListView.swift; sourceTree = "<group>"; };
 		0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsService.swift; sourceTree = "<group>"; };
 		1467018963556ED15DF0EA00 /* PerformanceBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceBudgetTests.swift; sourceTree = "<group>"; };
@@ -97,7 +97,7 @@
 		CD3DD15F4CBC61B88B0FC392 /* DiscogsCollectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsCollectionService.swift; sourceTree = "<group>"; };
 		D961EB88A849DF0D30E563D5 /* SwiftDataLibraryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataLibraryCache.swift; sourceTree = "<group>"; };
 		EA5571A53F02B02863A80BF6 /* DiscogsLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsLibraryService.swift; sourceTree = "<group>"; };
-		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FD2BE0076F5FBD08FF0DB0AF /* DiscogsOAuthSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsOAuthSigner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -296,7 +296,6 @@
 			);
 			mainGroup = F3082CA6946E4CE2ACBEB8A4;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -386,6 +385,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGFX8LC7PZ;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = FlipSide/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -394,7 +394,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flipside.FlipSide;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vcoulon.FlipSide;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -565,6 +565,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGFX8LC7PZ;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = FlipSide/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -573,7 +574,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.flipside.FlipSide;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vcoulon.FlipSide;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
