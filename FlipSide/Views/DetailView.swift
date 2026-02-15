@@ -401,22 +401,6 @@ struct DetailView: View {
                     )
                 }
                 
-                // Match confidence score
-                HStack(spacing: 8) {
-                    Image(systemName: confidenceIcon)
-                        .font(.subheadline)
-                        .foregroundStyle(confidenceColor)
-                    
-                    Text("Match Confidence")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 140, alignment: .leading)
-                    
-                    Text(confidenceText)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(confidenceColor)
-                }
             }
             .padding()
             .background(Color(.secondarySystemGroupedBackground))
@@ -956,28 +940,6 @@ struct DetailView: View {
                 .fontWeight(.medium)
             
             Spacer()
-        }
-    }
-    
-    // MARK: - Computed Properties
-    
-    private var confidenceText: String {
-        String(format: "%.0f%% match", displayMatch.matchScore * 100)
-    }
-    
-    private var confidenceColor: Color {
-        switch displayMatch.matchScore {
-        case 0.8...1.0: return .green
-        case 0.6..<0.8: return .orange
-        default: return .red
-        }
-    }
-    
-    private var confidenceIcon: String {
-        switch displayMatch.matchScore {
-        case 0.8...1.0: return "checkmark.circle.fill"
-        case 0.6..<0.8: return "exclamationmark.circle.fill"
-        default: return "questionmark.circle.fill"
         }
     }
     
