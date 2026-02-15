@@ -307,7 +307,7 @@ struct SocialContext: Codable {
 - [x] 23b. Extract DiscogsMatchCard into separate component file (Views/Components/)
 - [x] 23c. Create horizontal DiscogsMatchCarousel component wrapping match cards
 - [x] 23d. Transform ResultView to match selection view with carousel
-- [ ] 23e. Update navigation flow: add DetailDestination, wire carousel → DetailView transition
+- [x] 23e. Update navigation flow: add DetailDestination, wire carousel → DetailView transition
 - [ ] 23f. Update openScan() logic to navigate directly to DetailView if selectedMatchIndex is set
 - [ ] 23g. Test all scenarios: new scans, reopening saved scans, no matches, errors, rate limiting
 

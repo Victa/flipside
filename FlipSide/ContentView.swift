@@ -98,8 +98,14 @@ struct HistoryView: View {
                     image: destination.image,
                     extractedData: destination.extractedData,
                     discogsMatches: destination.discogsMatches,
-                    discogsError: destination.discogsError
+                    discogsError: destination.discogsError,
+                    onMatchSelected: { match in
+                        navigationPath.append(DetailDestination(match: match))
+                    }
                 )
+            }
+            .navigationDestination(for: DetailDestination.self) { destination in
+                DetailView(match: destination.match)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -409,6 +415,19 @@ struct ResultDestination: Hashable {
     }
     
     static func == (lhs: ResultDestination, rhs: ResultDestination) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct DetailDestination: Hashable {
+    let id = UUID()
+    let match: DiscogsMatch
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: DetailDestination, rhs: DetailDestination) -> Bool {
         lhs.id == rhs.id
     }
 }
