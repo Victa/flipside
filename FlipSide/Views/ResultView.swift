@@ -2,7 +2,7 @@
 //  ResultView.swift
 //  FlipSide
 //
-//  Displays extracted vinyl record information
+//  Match selection view with horizontal carousel of Discogs matches
 //
 
 import SwiftUI
@@ -17,36 +17,27 @@ struct ResultView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 24) {
                 // Offline indicator banner
                 if !networkMonitor.isConnected {
                     offlineIndicatorBanner
                 }
                 
-                // Captured image
+                // Captured image (smaller for carousel focus)
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 300)
+                    .frame(maxHeight: 200)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .shadow(radius: 4)
                     .padding(.horizontal)
                 
-                // Discogs matches section (always shown with status)
-                discogsMatchesSection
-                
-                // Confidence indicator
-                confidenceSection
-                
-                // Extracted fields
-                extractedFieldsSection
-                
-                // Raw text section
-                rawTextSection
+                // Match selection section
+                matchSelectionSection
             }
             .padding(.vertical)
         }
-        .navigationTitle("Results")
+        .navigationTitle("Select Match")
         .navigationBarTitleDisplayMode(.inline)
     }
     
@@ -67,258 +58,104 @@ struct ResultView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
-    // MARK: - Discogs Matches Section
+    // MARK: - Match Selection Section
     
-    private var discogsMatchesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Discogs Matches")
-                .font(.headline)
-                .padding(.horizontal)
-            
-            if !discogsMatches.isEmpty {
-                // Show match cards when matches are found
-                VStack(spacing: 12) {
-                    ForEach(Array(discogsMatches.prefix(5).enumerated()), id: \.element.releaseId) { index, match in
-                        DiscogsMatchCard(match: match, rank: index + 1)
-                    }
-                }
-                .padding(.horizontal)
-            } else if let error = discogsError {
-                // Show error message when search failed
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .font(.title2)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Unable to search Discogs")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.horizontal)
-            } else {
-                // Show "no results" message when search completed but found nothing
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .font(.title2)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("No matches found")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            
-                            Text("Discogs didn't find any matching releases for this record.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-    
-    // MARK: - Confidence Section
-    
-    private var confidenceSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var matchSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Section header
             HStack {
-                Text("Confidence")
+                Text(matchHeaderText)
                     .font(.headline)
                 Spacer()
-                Text(confidenceText)
-                    .font(.subheadline)
-                    .foregroundStyle(confidenceColor)
-            }
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // Background
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 8)
-                    
-                    // Progress
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(confidenceColor)
-                        .frame(
-                            width: geometry.size.width * extractedData.confidence,
-                            height: 8
-                        )
-                }
-            }
-            .frame(height: 8)
-        }
-        .padding(.horizontal)
-    }
-    
-    private var confidenceText: String {
-        let percentage = Int(extractedData.confidence * 100)
-        return "\(percentage)%"
-    }
-    
-    private var confidenceColor: Color {
-        switch extractedData.confidence {
-        case 0.8...1.0:
-            return .green
-        case 0.6..<0.8:
-            return .orange
-        default:
-            return .red
-        }
-    }
-    
-    // MARK: - Extracted Fields Section
-    
-    private var extractedFieldsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Extracted Information")
-                .font(.headline)
-                .padding(.horizontal)
-            
-            VStack(spacing: 0) {
-                if let artist = extractedData.artist {
-                    ExtractedFieldRow(label: "Artist", value: artist)
-                    Divider()
-                }
-                
-                if let album = extractedData.album {
-                    ExtractedFieldRow(label: "Album", value: album)
-                    Divider()
-                }
-                
-                if let label = extractedData.label {
-                    ExtractedFieldRow(label: "Label", value: label)
-                    Divider()
-                }
-                
-                if let catalogNumber = extractedData.catalogNumber {
-                    ExtractedFieldRow(label: "Catalog #", value: catalogNumber)
-                    Divider()
-                }
-                
-                if let year = extractedData.year {
-                    ExtractedFieldRow(label: "Year", value: String(year))
-                    if extractedData.tracks != nil {
-                        Divider()
-                    }
-                }
-                
-                // Tracks section (important for singles and EPs)
-                if let tracks = extractedData.tracks, !tracks.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Tracks")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        
-                        ForEach(Array(tracks.enumerated()), id: \.offset) { _, track in
-                            HStack(alignment: .top, spacing: 8) {
-                                Text(track.position)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 30, alignment: .leading)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(track.title)
-                                        .font(.body)
-                                    
-                                    if let trackArtist = track.artist {
-                                        Text(trackArtist)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.bottom, 8)
-                    }
-                }
-                
-                // Show message if no fields were extracted
-                if extractedData.artist == nil &&
-                   extractedData.album == nil &&
-                   extractedData.label == nil &&
-                   extractedData.catalogNumber == nil &&
-                   extractedData.year == nil &&
-                   extractedData.tracks == nil {
-                    Text("No structured information extracted")
+                if !discogsMatches.isEmpty {
+                    Text("\(discogsMatches.prefix(5).count) \(discogsMatches.count == 1 ? "match" : "matches")")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .padding()
                 }
             }
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
+            
+            // Content: carousel, error, or empty state
+            if !discogsMatches.isEmpty {
+                // Show horizontal carousel of matches
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tap a card to view full details")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                    
+                    DiscogsMatchCarousel(
+                        matches: Array(discogsMatches.prefix(5)),
+                        onMatchSelected: { match, index in
+                            // TODO: Navigation will be wired in task 23e
+                            print("Selected match #\(index + 1): \(match.title)")
+                        }
+                    )
+                }
+            } else if let error = discogsError {
+                // Show error state when search failed
+                errorStateView(error: error)
+            } else {
+                // Show empty state when search completed but found nothing
+                emptyStateView
+            }
         }
     }
     
-    // MARK: - Raw Text Section
-    
-    private var rawTextSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Raw Text")
-                .font(.headline)
-                .padding(.horizontal)
-            
-            Text(extractedData.rawText)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal)
+    private var matchHeaderText: String {
+        if !discogsMatches.isEmpty {
+            return "Found Matches"
+        } else if discogsError != nil {
+            return "Search Error"
+        } else {
+            return "No Matches"
         }
     }
-}
-
-// MARK: - Supporting Views
-
-struct ExtractedFieldRow: View {
-    let label: String
-    let value: String
     
-    var body: some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(width: 90, alignment: .leading)
+    private func errorStateView(error: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.title2)
             
-            Text(value)
-                .font(.body)
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Unable to search Discogs")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
             
             Spacer()
         }
         .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal)
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            
+            VStack(spacing: 8) {
+                Text("No matches found")
+                    .font(.headline)
+                
+                Text("Discogs didn't find any matching releases for this record. Try scanning a clearer image or a different part of the record.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .padding(.vertical, 32)
+        .frame(maxWidth: .infinity)
     }
 }
 

@@ -24,6 +24,7 @@
 		DAD35DB0C043D19ADE4E7D1E /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F710380C860B44B2210F50C /* ProcessingView.swift */; };
 		FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3286C01D81D5167BFC0210F3 /* CameraPreviewView.swift */; };
 		9E2F4A7B5C8D3E1F6A4B8D29 /* DiscogsMatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */; };
+		5F3A8D6C4E9B2A7F8D1C3E4B /* DiscogsMatchCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +36,7 @@
 		381C45531F49D9710B80692F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F710380C860B44B2210F50C /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
 		4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsMatchCard.swift; sourceTree = "<group>"; };
+		2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsMatchCarousel.swift; sourceTree = "<group>"; };
 		5D8D198EB8B2C3094DDD8AB9 /* ImageCaptureSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCaptureSheet.swift; sourceTree = "<group>"; };
 		3B9A7F5E2C6D48A9B1E4D273 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		77C7C647E8921EEFA96A4464 /* PhotoLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryPicker.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */,
+				2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -180,6 +183,7 @@
 				2F8A9C4E5B7D6F1A3E4C8D92 /* DetailView.swift in Sources */,
 				470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
 				9E2F4A7B5C8D3E1F6A4B8D29 /* DiscogsMatchCard.swift in Sources */,
+				5F3A8D6C4E9B2A7F8D1C3E4B /* DiscogsMatchCarousel.swift in Sources */,
 				81B64503AE8815B00D2BAEE8 /* FlipSideApp.swift in Sources */,
 				1073548ED81F3EFDEBF624D4 /* ImageCaptureService.swift in Sources */,
 				A6A95750BBCFB262DBDD6273 /* ImageCaptureSheet.swift in Sources */,
