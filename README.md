@@ -28,7 +28,7 @@ Flip Side follows a clean MVVM architecture with clear separation of concerns:
 ```
 ┌──────────────────────────────────────────────┐
 │            SwiftUI Views (UI Layer)          │
-│  HistoryView, DetailView, SettingsView        │
+│  HistoryView, DetailView, SettingsView       │
 └──────────────┬───────────────────────────────┘
                │
 ┌──────────────▼───────────────────────────────┐
