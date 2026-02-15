@@ -92,6 +92,7 @@ struct DiscogsMatch: Codable, Equatable {
     // Pricing
     var lowestPrice: Decimal?
     var medianPrice: Decimal?
+    var highPrice: Decimal?
     
     // Community stats
     var numForSale: Int? // Number of copies available for sale
@@ -149,7 +150,9 @@ struct DiscogsMatch: Codable, Equatable {
         year: Int? = 1959,
         matchScore: Double = 0.95,
         genres: [String] = ["Jazz"],
-        lowestPrice: Decimal? = 24.99
+        lowestPrice: Decimal? = 24.99,
+        medianPrice: Decimal? = 35.00,
+        highPrice: Decimal? = 75.00
     ) -> DiscogsMatch {
         return DiscogsMatch(
             releaseId: releaseId,
@@ -169,7 +172,8 @@ struct DiscogsMatch: Codable, Equatable {
             tracklist: [],
             identifiers: [],
             lowestPrice: lowestPrice,
-            medianPrice: nil,
+            medianPrice: medianPrice,
+            highPrice: highPrice,
             numForSale: nil,
             inWantlist: nil,
             inCollection: nil,

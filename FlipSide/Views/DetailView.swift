@@ -54,7 +54,7 @@ struct DetailView: View {
                 }
                 
                 // Pricing information
-                if match.lowestPrice != nil || match.medianPrice != nil {
+                if match.lowestPrice != nil || match.medianPrice != nil || match.highPrice != nil {
                     pricingSection
                 }
                 
@@ -510,6 +510,25 @@ struct DetailView: View {
                             .foregroundStyle(.blue)
                     }
                 }
+                
+                if let highPrice = match.highPrice {
+                    HStack {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.orange)
+                        
+                        Text("High Price")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("$\(highPrice as NSDecimalNumber)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
             .padding()
             .background(Color(.secondarySystemGroupedBackground))
@@ -740,6 +759,7 @@ struct DetailView: View {
                 ],
                 lowestPrice: 24.99,
                 medianPrice: 35.00,
+                highPrice: 75.00,
                 numForSale: 42,
                 inWantlist: 1523,
                 inCollection: 3891,

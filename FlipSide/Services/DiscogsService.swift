@@ -15,6 +15,7 @@ final class DiscogsService {
     private let baseURL = "https://api.discogs.com"
     private let searchEndpoint = "/database/search"
     private let releaseEndpoint = "/releases"
+    private let marketplaceEndpoint = "/marketplace/price_suggestions"
     private let maxRetries = 3
     private let retryDelay: TimeInterval = 1.0
     private let maxResultsPerSearch = 10
@@ -219,6 +220,16 @@ final class DiscogsService {
         }
     }
     
+    private struct MarketplacePriceResponse: Codable {
+        let low: Double?
+        let median: Double?
+        let high: Double?
+        
+        enum CodingKeys: String, CodingKey {
+            case low, median, high
+        }
+    }
+    
     // MARK: - Singleton
     
     static let shared = DiscogsService()
@@ -304,7 +315,8 @@ final class DiscogsService {
                 
                 // Pricing
                 lowestPrice: nil, // Will be fetched separately if needed
-                medianPrice: nil,  // Will be fetched separately if needed
+                medianPrice: nil, // Will be fetched separately if needed
+                highPrice: nil,   // Will be fetched separately if needed
                 
                 // Community stats
                 numForSale: nil,
@@ -363,6 +375,44 @@ final class DiscogsService {
             return try decoder.decode(ReleaseResponse.self, from: data)
         } catch {
             throw DiscogsError.parsingError("Failed to decode release details: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Fetch marketplace price suggestions (low, median, high)
+    /// - Parameter releaseId: The Discogs release ID
+    /// - Returns: MarketplacePriceResponse with pricing statistics
+    /// - Throws: DiscogsError if fetch fails
+    private func fetchMarketplaceStats(releaseId: Int) async throws -> MarketplacePriceResponse {
+        guard let personalToken = KeychainService.shared.discogsPersonalToken else {
+            throw DiscogsError.noPersonalToken
+        }
+        
+        // Apply rate limiting
+        await applyRateLimit()
+        
+        // Build URL
+        guard let url = URL(string: "\(baseURL)\(marketplaceEndpoint)/\(releaseId)") else {
+            throw DiscogsError.invalidURL
+        }
+        
+        // Create request
+        var request = URLRequest(url: url)
+        request.setValue("Discogs token=\(personalToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        
+        // Execute request
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // Validate response
+        try validateHTTPResponse(response)
+        
+        // Parse response
+        let decoder = JSONDecoder()
+        do {
+            return try decoder.decode(MarketplacePriceResponse.self, from: data)
+        } catch {
+            throw DiscogsError.parsingError("Failed to decode marketplace stats: \(error.localizedDescription)")
         }
     }
     
@@ -713,6 +763,15 @@ extension DiscogsService {
             do {
                 let details = try await fetchReleaseDetails(releaseId: match.releaseId)
                 
+                // Fetch marketplace stats (low, median, high prices)
+                var marketplaceStats: MarketplacePriceResponse?
+                do {
+                    marketplaceStats = try await fetchMarketplaceStats(releaseId: match.releaseId)
+                } catch {
+                    // Marketplace stats are optional - continue if they fail
+                    print("Failed to fetch marketplace stats for release \(match.releaseId): \(error)")
+                }
+                
                 // Update match with ALL detailed information
                 matches[index] = DiscogsMatch(
                     // Basic info
@@ -774,9 +833,10 @@ extension DiscogsService {
                         )
                     } ?? [],
                     
-                    // Pricing
-                    lowestPrice: details.lowestPrice.map { Decimal($0) },
-                    medianPrice: nil, // Would need marketplace stats endpoint
+                    // Pricing - use marketplace stats for complete pricing data
+                    lowestPrice: marketplaceStats?.low.map { Decimal($0) } ?? details.lowestPrice.map { Decimal($0) },
+                    medianPrice: marketplaceStats?.median.map { Decimal($0) },
+                    highPrice: marketplaceStats?.high.map { Decimal($0) },
                     
                     // Community stats
                     numForSale: details.numForSale,
