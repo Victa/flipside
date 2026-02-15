@@ -116,7 +116,13 @@ struct HistoryView: View {
                 )
             }
             .navigationDestination(for: DetailDestination.self) { destination in
-                DetailView(match: destination.match)
+                DetailView(
+                    match: destination.match,
+                    onDone: {
+                        // Clear navigation path to return to HistoryView
+                        navigationPath.removeLast(navigationPath.count)
+                    }
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

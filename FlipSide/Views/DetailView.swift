@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DetailView: View {
     let match: DiscogsMatch
+    let onDone: () -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.openURL) private var openURL
@@ -44,6 +45,14 @@ struct DetailView: View {
         }
         .navigationTitle("Release Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    onDone()
+                }
+                .fontWeight(.semibold)
+            }
+        }
     }
     
     // MARK: - Offline Indicator
@@ -352,7 +361,10 @@ struct DetailView: View {
                 genres: ["Jazz", "Cool Jazz", "Modal"],
                 lowestPrice: 24.99,
                 medianPrice: 35.00
-            )
+            ),
+            onDone: {
+                print("Done tapped")
+            }
         )
     }
 }
