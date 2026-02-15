@@ -172,6 +172,7 @@ struct AppRootTabView: View {
                 DetailView(
                     match: destination.match,
                     scanId: destination.scanId,
+                    showDoneButton: destination.source == .scanUtility,
                     onDone: {
                         switch destination.source {
                         case .scanUtility:
