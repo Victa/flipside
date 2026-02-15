@@ -234,6 +234,7 @@ final class DiscogsAuthService: NSObject, ObservableObject {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         try authorizeRequest(&request, callback: callbackURLString)
+        PerformanceMetrics.incrementCounter("discogs_api_post_oauth_request_token")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateAuthResponse(data: data, response: response)
@@ -263,6 +264,7 @@ final class DiscogsAuthService: NSObject, ObservableObject {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         try authorizeRequest(&request, verifier: verifier)
+        PerformanceMetrics.incrementCounter("discogs_api_post_oauth_access_token")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateAuthResponse(data: data, response: response)
@@ -300,6 +302,7 @@ final class DiscogsAuthService: NSObject, ObservableObject {
             ),
             forHTTPHeaderField: "Authorization"
         )
+        PerformanceMetrics.incrementCounter("discogs_api_get_oauth_identity")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateAuthResponse(data: data, response: response)

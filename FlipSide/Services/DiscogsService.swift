@@ -18,7 +18,11 @@ final class DiscogsService {
     private let marketplaceEndpoint = "/marketplace/price_suggestions"
     private let maxRetries = 3
     private let maxResultsPerSearch = 10
+    private let searchCacheTTL: TimeInterval = 10 * 60
+    private let releaseDetailsCacheTTL: TimeInterval = 24 * 60 * 60
+    private let priceSuggestionsCacheTTL: TimeInterval = 6 * 60 * 60
     private let rateLimiter = DiscogsRateLimiter.shared
+    private let cacheStore = DiscogsCacheStore.shared
     
     // MARK: - Error Types
     
@@ -59,7 +63,7 @@ final class DiscogsService {
     
     // MARK: - Response Models
     
-    private struct SearchResponse: Codable {
+    struct SearchResponse: Codable {
         let results: [SearchResult]
         let pagination: Pagination?
         
@@ -92,7 +96,7 @@ final class DiscogsService {
         }
     }
     
-    private struct ReleaseResponse: Codable {
+    struct ReleaseResponse: Codable {
         let id: Int
         let title: String
         let artists: [Artist]?
@@ -216,7 +220,7 @@ final class DiscogsService {
     }
     
     /// Price suggestion for a single condition grade
-    private struct PriceSuggestion: Codable {
+    struct PriceSuggestion: Codable {
         let currency: String
         let value: Double
     }
@@ -358,7 +362,23 @@ final class DiscogsService {
     /// - Parameter releaseId: The Discogs release ID
     /// - Returns: Updated DiscogsMatch with detailed information
     /// - Throws: DiscogsError if fetch fails
-    private func fetchReleaseDetails(releaseId: Int) async throws -> ReleaseResponse {
+    private func fetchReleaseDetails(
+        releaseId: Int,
+        forceRefresh: Bool = false
+    ) async throws -> ReleaseResponse {
+        try await cacheStore.releaseDetails(
+            releaseId: releaseId,
+            ttl: releaseDetailsCacheTTL,
+            forceRefresh: forceRefresh
+        ) { [weak self] in
+            guard let self else {
+                throw DiscogsError.invalidResponse
+            }
+            return try await self.fetchReleaseDetailsUncached(releaseId: releaseId)
+        }
+    }
+
+    private func fetchReleaseDetailsUncached(releaseId: Int) async throws -> ReleaseResponse {
         guard DiscogsAuthService.shared.isConnected else {
             throw DiscogsError.notConnected
         }
@@ -376,6 +396,7 @@ final class DiscogsService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_releases_by_id")
         
         // Execute request
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -398,7 +419,23 @@ final class DiscogsService {
     /// - Parameter releaseId: The Discogs release ID
     /// - Returns: Dictionary of condition names to DiscogsMatch.ConditionPrice
     /// - Throws: DiscogsError if fetch fails
-    private func fetchPriceSuggestions(releaseId: Int) async throws -> [String: DiscogsMatch.ConditionPrice] {
+    private func fetchPriceSuggestions(
+        releaseId: Int,
+        forceRefresh: Bool = false
+    ) async throws -> [String: DiscogsMatch.ConditionPrice] {
+        try await cacheStore.priceSuggestions(
+            releaseId: releaseId,
+            ttl: priceSuggestionsCacheTTL,
+            forceRefresh: forceRefresh
+        ) { [weak self] in
+            guard let self else {
+                throw DiscogsError.invalidResponse
+            }
+            return try await self.fetchPriceSuggestionsUncached(releaseId: releaseId)
+        }
+    }
+
+    private func fetchPriceSuggestionsUncached(releaseId: Int) async throws -> [String: DiscogsMatch.ConditionPrice] {
         guard DiscogsAuthService.shared.isConnected else {
             throw DiscogsError.notConnected
         }
@@ -416,6 +453,7 @@ final class DiscogsService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_marketplace_price_suggestions")
         
         // Execute request
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -588,24 +626,29 @@ final class DiscogsService {
     private func performSearchWithRetry(
         query: String
     ) async throws -> [SearchResponse.SearchResult] {
-        for attempt in 0..<maxRetries {
-            do {
-                return try await performSearch(
-                    query: query
-                )
-            } catch DiscogsError.rateLimitExceeded {
-                // For rate limits, use exponential backoff
-                if attempt < maxRetries - 1 {
-                    await rateLimiter.backoff(attempt: attempt)
-                    continue
-                }
-            } catch {
-                // For other errors, rethrow immediately
-                throw error
+        try await cacheStore.searchResults(
+            query: query,
+            ttl: searchCacheTTL
+        ) { [weak self] in
+            guard let self else {
+                throw DiscogsError.invalidResponse
             }
+
+            for attempt in 0..<self.maxRetries {
+                do {
+                    return try await self.performSearchUncached(query: query)
+                } catch DiscogsError.rateLimitExceeded {
+                    if attempt < self.maxRetries - 1 {
+                        await self.rateLimiter.backoff(attempt: attempt)
+                        continue
+                    }
+                } catch {
+                    throw error
+                }
+            }
+
+            throw DiscogsError.retryLimitExceeded
         }
-        
-        throw DiscogsError.retryLimitExceeded
     }
 
     private func mapUniqueVideos(from videos: [ReleaseResponse.Video]?) -> [DiscogsMatch.Video] {
@@ -683,7 +726,7 @@ final class DiscogsService {
     }
     
     /// Perform a single search attempt
-    private func performSearch(
+    private func performSearchUncached(
         query: String
     ) async throws -> [SearchResponse.SearchResult] {
         // Apply rate limiting
@@ -707,6 +750,7 @@ final class DiscogsService {
         try DiscogsAuthService.shared.authorizeRequest(&request)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("FlipSideApp/1.0", forHTTPHeaderField: "User-Agent")
+        PerformanceMetrics.incrementCounter("discogs_api_get_database_search")
         
         // Execute request
         let (data, response) = try await URLSession.shared.data(for: request)

@@ -21,6 +21,6 @@ struct FlipSideApp: App {
                     }
                 }
         }
-        .modelContainer(for: [Scan.self, LibraryEntry.self, LibrarySyncState.self])
+        .modelContainer(for: [Scan.self, LibraryEntry.self, LibrarySyncState.self, DiscogsReleaseDetailsCacheEntry.self])
     }
 }
