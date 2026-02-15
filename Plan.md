@@ -309,7 +309,7 @@ struct SocialContext: Codable {
 - [x] 23d. Transform ResultView to match selection view with carousel
 - [x] 23e. Update navigation flow: add DetailDestination, wire carousel → DetailView transition
 - [x] 23f. Update openScan() logic to navigate directly to DetailView if selectedMatchIndex is set
-- [ ] 23g. Test all scenarios: new scans, reopening saved scans, no matches, errors, rate limiting
+- [x] 23g. Test all scenarios: new scans, reopening saved scans, no matches, errors, rate limiting
 
 **Key Changes:**
 - New screen: DetailView (dedicated view for selected Discogs release)
