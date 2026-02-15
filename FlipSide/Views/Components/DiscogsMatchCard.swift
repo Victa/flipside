@@ -10,6 +10,7 @@ import SwiftUI
 struct DiscogsMatchCard: View {
     let match: DiscogsMatch
     let rank: Int
+    var collectionStatus: (isInCollection: Bool?, isInWantlist: Bool?)? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -27,15 +28,31 @@ struct DiscogsMatchCard: View {
                 
                 Spacer()
                 
-                // Confidence score
-                HStack(spacing: 4) {
-                    Image(systemName: confidenceIcon)
-                        .font(.caption)
-                    Text(confidenceText)
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                // Collection status icons
+                HStack(spacing: 6) {
+                    if let status = collectionStatus {
+                        if status.isInCollection == true {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                        if status.isInWantlist == true {
+                            Image(systemName: "heart.fill")
+                                .font(.caption)
+                                .foregroundStyle(.pink)
+                        }
+                    }
+                    
+                    // Confidence score
+                    HStack(spacing: 4) {
+                        Image(systemName: confidenceIcon)
+                            .font(.caption)
+                        Text(confidenceText)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(confidenceColor)
                 }
-                .foregroundStyle(confidenceColor)
             }
             
             // Album cover image

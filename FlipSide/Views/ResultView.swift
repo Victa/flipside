@@ -6,15 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ResultView: View {
     let image: UIImage
     let extractedData: ExtractedData
     let discogsMatches: [DiscogsMatch]
     let discogsError: String?
+    let scanId: UUID?
     let onMatchSelected: (DiscogsMatch, Int) -> Void
     
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @Environment(\.modelContext) private var modelContext
+    
+    // Collection status state
+    @State private var collectionStatus: (isInCollection: Bool?, isInWantlist: Bool?)? = nil
     
     var body: some View {
         ScrollView {
@@ -31,6 +37,26 @@ struct ResultView: View {
         }
         .navigationTitle("Select Match")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadCollectionStatus()
+        }
+    }
+    
+    // MARK: - Collection Status Loading
+    
+    private func loadCollectionStatus() async {
+        // Load collection status from scan if available
+        guard let scanId = scanId else { return }
+        
+        let fetchDescriptor = FetchDescriptor<Scan>(
+            predicate: #Predicate { $0.id == scanId }
+        )
+        
+        if let scan = try? modelContext.fetch(fetchDescriptor).first {
+            await MainActor.run {
+                collectionStatus = (isInCollection: scan.isInCollection, isInWantlist: scan.isInWantlist)
+            }
+        }
     }
     
     // MARK: - Offline Indicator
@@ -78,6 +104,7 @@ struct ResultView: View {
                     
                     DiscogsMatchCarousel(
                         matches: Array(discogsMatches.prefix(5)),
+                        collectionStatus: collectionStatus,
                         onMatchSelected: { match, index in
                             onMatchSelected(match, index)
                         }
@@ -171,6 +198,7 @@ struct ResultView: View {
                 .sample(releaseId: 123458, title: "Kind of Blue (Limited Edition)", year: 2009, matchScore: 0.75)
             ],
             discogsError: nil,
+            scanId: nil,
             onMatchSelected: { match, index in
                 print("Preview: Selected \(match.title) at index \(index)")
             }

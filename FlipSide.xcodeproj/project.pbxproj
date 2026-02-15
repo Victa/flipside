@@ -26,6 +26,7 @@
 		9E2F4A7B5C8D3E1F6A4B8D29 /* DiscogsMatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7E9B3A2F5D8A1E6C9B7F4D /* DiscogsMatchCard.swift */; };
 		5F3A8D6C4E9B2A7F8D1C3E4B /* DiscogsMatchCarousel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8E4F9A6B7C3D1E5A8F2C4B /* DiscogsMatchCarousel.swift */; };
 		3A9D5E7C8B4F2A1D6E9C8B5F /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C9B2A5F8D3A1E6C9B7F4D /* CachedAsyncImage.swift */; };
+		6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +50,7 @@
 		9BDF0856DA2E3DFDB893F653 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		C713B19E709576052C4C831F /* FlipSideApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipSideApp.swift; sourceTree = "<group>"; };
 		D8F1E5B9C7A4D3F2E6B9A7C5 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscogsCollectionService.swift; sourceTree = "<group>"; };
 		ED9CBAE509A45A09ABD0CBAF /* FlipSide.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlipSide.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -102,6 +104,7 @@
 		C1767B24B5559214C69C9EF3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				9A7F5E3B4C8D2F1A6E9C8B5D /* DiscogsCollectionService.swift */,
 				0E14585CC1C6025BBCB102C0 /* DiscogsService.swift */,
 				95EB9BA6437F1DDF7BFB22C9 /* ImageCaptureService.swift */,
 				908BAF5AAEFB77E86F27BD25 /* KeychainService.swift */,
@@ -185,6 +188,7 @@
 				FEE45467E7C04636CFD14AB3 /* CameraPreviewView.swift in Sources */,
 				30D2D9DEDB2FA5E8DFC4C625 /* ContentView.swift in Sources */,
 				2F8A9C4E5B7D6F1A3E4C8D92 /* DetailView.swift in Sources */,
+				6B8F4D3C2E9A7B5F8D1C4E3A /* DiscogsCollectionService.swift in Sources */,
 				470DCDA465A5F1FB71A8DA4C /* DiscogsService.swift in Sources */,
 				9E2F4A7B5C8D3E1F6A4B8D29 /* DiscogsMatchCard.swift in Sources */,
 				5F3A8D6C4E9B2A7F8D1C3E4B /* DiscogsMatchCarousel.swift in Sources */,
